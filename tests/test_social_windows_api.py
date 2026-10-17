@@ -56,10 +56,10 @@ def test_invalid_create_does_not_insert(client, changes):
     assert list_social_windows('demo-mariann') == []
 
 
-def test_selected_friends_is_explicitly_deferred(client):
+def test_selected_friends_rejects_non_friend(client):
     body = payload() | {'visibility': {'audience': 'selected_friends', 'selected_friend_ids': ['demo-zaynah']}}
     response = client.post('/users/me/social-windows', json=body, headers={'X-Demo-User-Id': 'demo-mariann'})
-    assert response.status_code == 409
+    assert response.status_code == 422
     assert list_social_windows('demo-mariann') == []
 
 
@@ -148,10 +148,10 @@ def test_edit_cannot_override_server_fields(client, field, value):
     assert record in client.get('/users/me/social-windows', headers=headers).json()
 
 
-def test_selected_friends_edit_deferred_but_owner_can_delete_seeded_window(client):
+def test_selected_friends_edit_requires_friendship_but_owner_can_delete_seeded_window(client):
     headers = {'X-Demo-User-Id': 'demo-zaynah'}
     body = payload() | {'visibility': {'audience': 'selected_friends', 'selected_friend_ids': ['demo-daniella']}}
-    assert client.put('/users/me/social-windows/window-4', json=body, headers=headers).status_code == 409
+    assert client.put('/users/me/social-windows/window-4', json=body, headers=headers).status_code == 422
     assert client.delete('/users/me/social-windows/window-4', headers=headers).status_code == 204
 
 
@@ -162,3 +162,54 @@ def test_edit_delete_cors(client, method):
         'Access-Control-Request-Headers': 'content-type,x-demo-user-id',
     })
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize('method', ['post', 'put'])
+@pytest.mark.parametrize('state', ['accepted', 'pending', 'declined', 'removed', 'unknown', 'self', 'mixed'])
+def test_selected_audience_validates_every_relationship_on_create_and_edit(client, method, state):
+    from backend.friendships import create_friend_request, respond_to_friend_request, remove_friendship
+
+    headers = {'X-Demo-User-Id': 'demo-mariann'}
+    original = client.post('/users/me/social-windows', json=payload(), headers=headers).json()
+    selected = ['demo-zaynah']
+    if state in ('accepted', 'pending', 'declined', 'removed', 'mixed'):
+        request = create_friend_request('demo-mariann', 'demo-zaynah')
+        if state != 'pending':
+            respond_to_friend_request(request.id, 'demo-zaynah', 'decline' if state == 'declined' else 'accept')
+        if state == 'removed':
+            remove_friendship(request.id, 'demo-mariann')
+        if state == 'mixed':
+            selected.append('demo-kusum')
+    elif state == 'unknown':
+        selected = ['demo-missing']
+    elif state == 'self':
+        selected = ['demo-mariann']
+
+    body = payload() | {'visibility': {'audience': 'selected_friends', 'selected_friend_ids': selected}}
+    path = '/users/me/social-windows' + (f"/{original['id']}" if method == 'put' else '')
+    response = getattr(client, method)(path, json=body, headers=headers)
+    if state == 'accepted':
+        assert response.status_code == (201 if method == 'post' else 200)
+        assert response.json()['visibility']['selected_friend_ids'] == selected
+        assert response.json() in client.get('/users/me/social-windows', headers=headers).json()
+    else:
+        assert response.status_code == 422
+        assert client.get('/users/me/social-windows', headers=headers).json() == [original]
+
+
+def test_removed_friend_stays_in_old_window_but_cannot_access_it(client):
+    from backend.friendships import create_friend_request, respond_to_friend_request, remove_friendship
+    from backend.models import VisibilityPolicy
+    from backend.repositories import get_user
+    from backend.services.permissions import can_access
+
+    headers = {'X-Demo-User-Id': 'demo-mariann'}
+    request = create_friend_request('demo-mariann', 'demo-zaynah')
+    respond_to_friend_request(request.id, 'demo-zaynah', 'accept')
+    body = payload() | {'visibility': {'audience': 'selected_friends', 'selected_friend_ids': ['demo-zaynah']}}
+    saved = client.post('/users/me/social-windows', json=body, headers=headers).json()
+    remove_friendship(request.id, 'demo-zaynah')
+    assert saved in client.get('/users/me/social-windows', headers=headers).json()
+    assert not can_access(get_user('demo-mariann'), get_user('demo-zaynah'), VisibilityPolicy.model_validate(saved['visibility']))
+    # Owner can clear stale selections by changing the audience.
+    assert client.put(f"/users/me/social-windows/{saved['id']}", json=payload(), headers=headers).status_code == 200

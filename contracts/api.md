@@ -45,8 +45,8 @@ Calendar read-sharing permission does not determine matching permission: backend
 | POST /friend-requests/{id}/respond | FriendRequestRespond | 200 FriendRequest | Implemented; recipient only; server stamps responded_at |
 | POST /friend-requests/{id}/remove | none | 200 FriendRequest | Implemented; either participant; accepted -> removed; replay idempotent |
 | GET /users/me/social-windows | none | 200 SocialWindow[] | Implemented; owner only |
-| POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends returns temporary 409 until friendship setup |
-| PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends temporarily returns 409 |
+| POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends requires accepted friends; invalid selections return 422 |
+| PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends selections validated; invalid selections return 422 |
 | DELETE /users/me/social-windows/{id} | none | 204 no body | Implemented; owner only |
 | POST /hangout-requests | HangoutRequestCreate | 201 HangoutRequest | Server assigns ID/requester; known distinct invitee |
 | POST /hangout-requests/{id}/candidates | none | 200 CandidateOption[] | Participants only; both window policies and hard constraints enforced |
@@ -85,19 +85,19 @@ Run `.venv/bin/python -m backend.scripts.export_schemas` from the repository roo
 ## Owner social-window implementation
 
 GET and POST /users/me/social-windows are database-backed. Owner reads include
-private and matching-only windows. Creation accepts private/community/friends;
-selected_friends is temporarily rejected with 409 until accepted-friend checks
-can be implemented. Existing seeded selected-friends windows remain readable.
+private and matching-only windows. Creation accepts all four audiences; selected_friends requires every selected
+ID to be a currently accepted friend, excluding the owner. Invalid relationships
+return 422. Existing seeded selected-friends windows remain readable.
 The API requires offset-aware timestamps; the demo form converts from the owner's
-IANA timezone to UTC and rejects DST gaps/repeated times. No cross-user schedule
-browsing, friendship enforcement, or activity-aware matching is implemented yet.
+IANA timezone to UTC and rejects DST gaps/repeated times. Cross-user schedule browsing and activity-aware matching are not implemented yet.
+Audience checks exist as a helper; selected-friend write validation is enforced.
 
 ## Owner window edits and deletion
 
 PUT replaces editable fields but preserves the URL ID and caller ownership.
 DELETE returns 204 with no body. Both SQL operations match ID and owner in one
 statement; missing and non-owned IDs return identical 404 responses. Invalid
-updates leave the stored record unchanged. Selected-friends edits remain deferred;
+updates leave the stored record unchanged. Selected-friends edits require all selected IDs to remain accepted friends;
 seeded selected-friends windows can still be deleted by their owner. There is no
 undo for deletion. Re-running the seed restores missing fixture windows, while
 preserving edits to existing records.
@@ -112,7 +112,7 @@ POST /friend-requests/{id}/respond returns 403 for a non-recipient, 404 for a
 missing request, 422 for a malformed decision, and 409 for changing a finalized
 decision. Repeating the same answer returns the unchanged record and timestamp.
 Acceptance is stored and available through are_friends; cross-user schedule
-filtering and selected-friends validation remain unimplemented. The demo friendship UI is connected; fixture friendship seeding is not.
+filtering remains unimplemented. Selected-friends write validation is implemented. The demo friendship UI is connected; fixture friendship seeding is not.
 
 ## Removing friendships
 
@@ -125,3 +125,13 @@ records never count as friendship and do not block new requests. Acceptance of
 a new request is required to reconnect. Respond cannot reopen removed records.
 Removal is scoped to the request ID, so replaying an old removal cannot affect a
 new accepted relationship. Demo UI provides confirmation and relationship history.
+
+## Selected-friend validation
+
+POST/PUT owner social-window routes validate selected-friend relationships against
+current SQLite state. Self, unknown users, pending, declined, and removed friends
+are rejected with 422. Mixed valid/invalid selections reject the entire write.
+Existing windows can retain stale IDs after removal, but the audience helper
+requires a current accepted friendship and therefore denies those viewers.
+Owners may change an old window to a different audience to clear stale selections.
+The frontend selected-friend picker is not connected yet; use the API/Swagger.
