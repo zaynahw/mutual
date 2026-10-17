@@ -1,0 +1,1 @@
+export function localDateTimeToISO(date: string, time: string, timeZone?: string): string;

@@ -1,0 +1,122 @@
+.friend-picker {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 560px);
+}
+
+.friend-picker__title {
+  margin: 0;
+  color: #171719;
+  font-family: "Century Gothic", "Aptos", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.friend-picker__list {
+  display: grid;
+  gap: 8px;
+}
+
+.friend-picker__search {
+  display: grid;
+  gap: 6px;
+  color: #694363;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.friend-picker__search input {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #ead6e6;
+  border-radius: 5px;
+  background: #fff;
+  color: #30252f;
+  font: inherit;
+}
+
+.friend-picker__search input:focus-visible {
+  outline: 2px solid #c653a8;
+  outline-offset: 1px;
+}
+
+.friend-picker__state {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed #ead6e6;
+  border-radius: 5px;
+  color: #716873;
+  font-size: 12px;
+}
+
+.friend-picker__state p {
+  margin: 0;
+}
+
+.friend-picker__state button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid #ead6e6;
+  border-radius: 4px;
+  background: #fff4fb;
+  color: #69345f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.friend-picker__card {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #ead6e6;
+  border-radius: 6px;
+  background: #fff4fb;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.friend-picker__card:hover {
+  border-color: #d39ac6;
+  background: #fff0fa;
+}
+
+.friend-picker__card.selected {
+  border-color: #bd69a8;
+  background: #f6dff0;
+  box-shadow: inset 0 0 0 1px #bd69a8;
+}
+
+.friend-picker__card:focus-visible {
+  outline: 2px solid #c653a8;
+  outline-offset: 2px;
+}
+
+.friend-picker__avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: #f2d4eb;
+  color: #68345d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.friend-picker__name {
+  color: #30252f;
+  font-size: 13px;
+  font-weight: 600;
+}

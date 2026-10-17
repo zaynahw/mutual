@@ -20,6 +20,23 @@ export interface DashboardData {
   upcoming_proposals: DashboardProposal[];
 }
 
+export interface Friend {
+  id: string;
+  display_name: string;
+}
+
+export interface CreateSocialWindowInput {
+  user_id: string;
+  start: string;
+  end: string;
+  visible_to: string[];
+  activity_types: string[];
+}
+
+export interface CreatedSocialWindow extends CreateSocialWindowInput {
+  id?: string;
+}
+
 export interface ScheduleInterval {
   start: string;
   end: string;
@@ -40,4 +57,6 @@ export const api: {
   checkHealth(): Promise<{ status: string }>;
   getDashboard(): Promise<DashboardData>;
   getSchedule(userId: string, start: string, end: string): Promise<ScheduleData>;
+  getFriends(userId: string): Promise<Friend[]>;
+  createSocialWindow(window: CreateSocialWindowInput): Promise<CreatedSocialWindow>;
 };

@@ -3,6 +3,9 @@ import examples from '../../contracts/examples.json';
 export const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const FRIENDS_ENDPOINT = (userId) => `${API_BASE_URL}/users/${encodeURIComponent(userId)}/friends`;
+const SOCIAL_WINDOWS_ENDPOINT = `${API_BASE_URL}/users/me/social-windows`;
+let mockSocialWindowId = 0;
 
 const dashboardMock = {
   user: {
@@ -91,4 +94,62 @@ async function getSchedule(userId, start, end) {
   return response.json();
 }
 
-export const api = { checkHealth, getDashboard, getSchedule };
+function getMockFriends(userId) {
+  if (!examples.users.some((user) => user.id === userId)) return [];
+
+  return examples.users
+    .filter((user) => user.id !== userId)
+    .map((user) => ({ id: user.id, display_name: user.display_name }));
+}
+
+async function getFriends(userId) {
+  if (USE_MOCKS) return getMockFriends(userId);
+
+  const response = await fetch(FRIENDS_ENDPOINT(userId), {
+    headers: { 'X-Demo-User-Id': userId },
+  });
+  if (!response.ok) throw new Error(`Friends request failed (${response.status}).`);
+
+  const friends = await response.json();
+  if (!Array.isArray(friends)) throw new Error('Friends response must be an array.');
+  return friends
+    .filter((friend) => friend.id !== userId)
+    .map((friend) => ({ id: friend.id, display_name: friend.display_name ?? friend.name }));
+}
+
+async function createSocialWindow(window) {
+  if (USE_MOCKS) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return { ...window, id: `social-window-demo-${++mockSocialWindowId}` };
+  }
+
+  const contractWindow = {
+    user_id: window.user_id,
+    start: window.start,
+    end: window.end,
+  };
+  const headers = {
+    'X-Demo-User-Id': window.user_id,
+  };
+  const currentResponse = await fetch(SOCIAL_WINDOWS_ENDPOINT, { headers });
+  if (!currentResponse.ok) throw new Error(`Loading existing availability failed (${currentResponse.status}).`);
+  const currentResult = await currentResponse.json();
+  const existingWindows = Array.isArray(currentResult.windows) ? currentResult.windows : [];
+
+  const response = await fetch(SOCIAL_WINDOWS_ENDPOINT, {
+    method: 'PUT',
+    headers: {
+      ...headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ windows: [...existingWindows, contractWindow] }),
+  });
+  if (!response.ok) throw new Error(`Saving availability failed (${response.status}).`);
+
+  const result = await response.json();
+  const savedWindow = result.windows?.at(-1);
+  if (!savedWindow) throw new Error('Availability response did not include the saved window.');
+  return { ...window, ...savedWindow };
+}
+
+export const api = { checkHealth, getDashboard, getSchedule, getFriends, createSocialWindow };

@@ -1,0 +1,176 @@
+.social-window-form {
+  display: grid;
+  gap: 24px;
+  width: min(100%, 680px);
+  margin-top: 28px;
+  padding: 22px;
+  border: 1px solid #ead6e6;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.social-window-form__heading h2 {
+  margin: 0 0 5px;
+  color: #30252f;
+  font-family: "Century Gothic", "Aptos", sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.social-window-form__heading p {
+  margin: 0;
+  color: #716873;
+  font-size: 12px;
+}
+
+.social-window-form__date-time {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 12px;
+}
+
+.social-window-form__field {
+  display: grid;
+  gap: 7px;
+  color: #594b58;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.social-window-form__field input {
+  width: 100%;
+  min-height: 39px;
+  padding: 7px 9px;
+  border: 1px solid #e3dce3;
+  border-radius: 4px;
+  background: #fff;
+  color: #30252f;
+  font: inherit;
+  font-size: 12px;
+}
+
+.social-window-form__field input:focus-visible,
+.social-window-form__choice input:focus-visible,
+.social-window-form__radio input:focus-visible,
+.social-window-form__friend input:focus-visible {
+  outline: 2px solid #c653a8;
+  outline-offset: 2px;
+}
+
+.social-window-form__field input[aria-invalid="true"] {
+  border-color: #bf687c;
+  background: #fffafb;
+}
+
+.social-window-form__error {
+  color: #a23e5e;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.social-window-form__submit:disabled {
+  background: #d8c8d4;
+  color: #746875;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.social-window-form__group {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.social-window-form__group legend {
+  margin-bottom: 12px;
+  color: #30252f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.social-window-form__activity-list,
+.social-window-form__visibility-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.social-window-form__choice,
+.social-window-form__radio,
+.social-window-form__friend {
+  display: inline-flex;
+  min-height: 35px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid #ead6e6;
+  border-radius: 20px;
+  background: #fff7fd;
+  color: #594b58;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.social-window-form__choice input,
+.social-window-form__radio input,
+.social-window-form__friend input {
+  accent-color: #b84b9c;
+}
+
+.social-window-form__friend-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.social-window-form__helper {
+  margin: 0;
+  color: #716873;
+  font-size: 11px;
+}
+
+.social-window-form__friend-error,
+.social-window-form__submit-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #a23e5e;
+  font-size: 11px;
+}
+
+.social-window-form__friend-error button,
+.social-window-form__submit-error button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid #e4cbd5;
+  border-radius: 4px;
+  background: #fffafb;
+  color: #8a3853;
+  cursor: pointer;
+  font: inherit;
+}
+
+.social-window-form__success {
+  margin: 0;
+  color: #2f7048;
+  font-size: 12px;
+}
+
+.social-window-form__friend {
+  border-radius: 4px;
+  background: #fff;
+}
+
+.social-window-form__submit {
+  justify-self: start;
+}
+
+@media (max-width: 560px) {
+  .social-window-form { gap: 20px; padding: 16px; }
+  .social-window-form__date-time { grid-template-columns: 1fr 1fr; }
+  .social-window-form__field:first-child { grid-column: 1 / -1; }
+}

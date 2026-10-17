@@ -1,9 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Link, NavLink, Outlet, Route, Routes, useParams } from 'react-router-dom';
-import { api, type DashboardData, type DashboardProposal, USE_MOCKS } from './api.js';
+import { api, type DashboardData, type DashboardProposal, type Friend, USE_MOCKS } from './api.js';
 import logoUrl from '../images/logo.jpg';
 import ScheduleView from './components/ScheduleView.jsx';
+import FriendPicker from './components/FriendPicker.jsx';
+import SocialWindowForm from './components/SocialWindowForm.jsx';
 import './style.css';
 
 const navigation = [
@@ -76,14 +78,14 @@ function ProposalRow({ proposal, timezone }: { proposal: DashboardProposal; time
 }
 
 const sections = {
-  requests: { eyebrow: 'YOUR PLANS', title: 'Requests', description: 'Keep track of the plans you have started and the people you have invited.' },
+  requests: { eyebrow: 'YOUR PLANS', title: 'Requests', description: 'Keep track of the plans you have started and the people you have invited.', action: { label: 'Create new', to: '/requests/new' } },
   proposals: { eyebrow: 'FINDING A TIME', title: 'Proposals', description: 'Review suggested times and follow the approvals for each plan.' },
   availability: { eyebrow: 'YOUR BOUNDARIES', title: 'Availability', description: 'Choose the windows you are comfortable sharing. Your calendar details stay private.' },
   settings: { eyebrow: 'YOUR DETAILS', title: 'Profile settings', description: 'Manage your demo profile, activity preferences, and timezone.' },
 };
 
-function SectionPage({ page }: { page: { eyebrow: string; title: string; description: string } }) {
-  return <main className="page-content section-page"><p className="eyebrow">{page.eyebrow}</p><h1>{page.title}</h1><p className="section-description">{page.description}</p><section className="section-notice"><span className="notice-mark" aria-hidden="true">✳</span><div><strong>This space is taking shape.</strong><p>This section will be available as its workflow is connected.</p></div></section><Link className="back-link" to="/">← Back to overview</Link></main>;
+function SectionPage({ page }: { page: { eyebrow: string; title: string; description: string; action?: { label: string; to: string } } }) {
+  return <main className="page-content section-page"><p className="eyebrow">{page.eyebrow}</p><h1>{page.title}</h1><p className="section-description">{page.description}</p>{page.action && <Link className="primary-button" to={page.action.to}><span aria-hidden="true">+</span>{page.action.label}</Link>}<section className="section-notice"><span className="notice-mark" aria-hidden="true">✳</span><div><strong>This space is taking shape.</strong><p>This section will be available as its workflow is connected.</p></div></section><Link className="back-link" to="/">← Back to overview</Link></main>;
 }
 
 function ProposalDetailPage() {
@@ -93,7 +95,34 @@ function ProposalDetailPage() {
 }
 
 function NewRequestPage() {
-  return <SectionPage page={{ eyebrow: 'MAKE A PLAN', title: 'Start a plan', description: 'Choose who to invite and what you would like to do.' }} />;
+  const [selectedFriend, setSelectedFriend] = React.useState<Friend | null>(null);
+
+  return <main className="page-content section-page request-create">
+    <p className="eyebrow">MAKE A PLAN</p>
+    <h1>Start a plan</h1>
+    <p className="section-description">Choose a friend to plan something together.</p>
+    <div className="request-create__workspace">
+      <FriendPicker
+        currentUserId="demo-alex"
+        selectedFriendId={selectedFriend?.id ?? null}
+        onSelect={setSelectedFriend}
+      />
+      <p className="request-create__selection" role="status" aria-live="polite">
+        {selectedFriend ? `Selected: ${selectedFriend.display_name}` : 'No friend selected'}
+      </p>
+    </div>
+    <Link className="back-link" to="/">← Back to overview</Link>
+  </main>;
+}
+
+function AvailabilityPage() {
+  return <main className="page-content section-page">
+    <p className="eyebrow">YOUR BOUNDARIES</p>
+    <h1>Availability</h1>
+    <p className="section-description">Choose the windows you are comfortable sharing. Your calendar details stay private.</p>
+    <SocialWindowForm userId="demo-alex" />
+    <Link className="back-link" to="/">← Back to overview</Link>
+  </main>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><BrowserRouter><Routes><Route element={<AppShell />}>
@@ -102,7 +131,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><
   <Route path="/requests/new" element={<NewRequestPage />} />
   <Route path="/proposals" element={<SectionPage page={sections.proposals} />} />
   <Route path="/proposals/:proposalId" element={<ProposalDetailPage />} />
-  <Route path="/availability" element={<SectionPage page={sections.availability} />} />
+  <Route path="/availability" element={<AvailabilityPage />} />
   <Route path="/settings" element={<SectionPage page={sections.settings} />} />
   <Route path="*" element={<SectionPage page={{ eyebrow: 'NOT FOUND', title: 'Page not found', description: 'That page could not be found.' }} />} />
 </Route></Routes></BrowserRouter></React.StrictMode>);
