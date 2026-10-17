@@ -36,10 +36,10 @@ def connect() -> Iterator[sqlite3.Connection]:
 
 
 def initialize_database() -> None:
-    """Create the first two tables without replacing existing data.
+    """Create tables and indexes without replacing existing data.
 
     This is initial setup, not a migration system. Further tables will be added
-    as friendships, requests, and approval persistence are implemented.
+    as hangout requests and approval persistence are implemented.
     """
     with connect() as connection:
         connection.executescript("""
@@ -57,6 +57,31 @@ def initialize_database() -> None:
 
             CREATE INDEX IF NOT EXISTS social_windows_user_id
             ON social_windows(user_id);
+
+            CREATE TABLE IF NOT EXISTS friend_requests (
+                id TEXT PRIMARY KEY NOT NULL,
+                sender_id TEXT NOT NULL,
+                recipient_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'accepted', 'declined')),
+                created_at TEXT NOT NULL,
+                responded_at TEXT,
+                FOREIGN KEY (sender_id) REFERENCES users(id),
+                FOREIGN KEY (recipient_id) REFERENCES users(id),
+                CHECK (sender_id != recipient_id),
+                CHECK (
+                    (status = 'pending' AND responded_at IS NULL)
+                    OR
+                    (status IN ('accepted', 'declined') AND responded_at IS NOT NULL)
+                )
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS unique_active_friend_pair
+            ON friend_requests (
+                min(sender_id, recipient_id),
+                max(sender_id, recipient_id)
+            )
+            WHERE status IN ('pending', 'accepted');
         """)
 
 

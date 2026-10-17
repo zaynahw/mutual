@@ -42,7 +42,7 @@ GET /health, GET /users, GET /users/me, GET/POST /users/me/social-windows, and P
 
 ## Initial SQLite setup
 
-Create the empty `users` and `social_windows` tables:
+Create missing `users`, `social_windows`, and `friend_requests` tables:
 
 ```sh
 .venv/bin/python -m backend.database
@@ -180,3 +180,21 @@ Deletion has no undo. The seed command restores missing fixture windows if rerun
 The form and list receive values and callbacks from SocialWindows; they do not
 make network requests. Backend create/edit visibility checks share one helper
 in `backend/routes/social_windows.py` until friendship enforcement is added.
+
+## Friendship storage foundation
+
+The `friend_requests` table stores sender/recipient IDs, status, and timestamps
+as SQL columns. Foreign keys require existing users; checks reject self-requests
+and inconsistent pending/answered states. A unique index treats both directions
+as the same pair and permits only one pending or accepted request per pair.
+Declined history may coexist with a new request. Pydantic and future service code
+must validate aware timestamps and response ordering; SQL does not parse these
+text timestamp fields. `backend/friendships.py` provides `are_friends(user_a, user_b)`, an
+ordered-pair lookup that returns true only for an accepted request. It also
+provides `create_friend_request(sender_id, recipient_id)` and
+`list_friend_requests(user_id)` for pending creation and incoming/outgoing history.
+These internal functions do not authenticate callers; future routes must derive
+IDs from the selected identity. Duplicate/unknown-user SQLite errors propagate
+to callers. Responding, routes, UI, and friendship seed inserts are not
+implemented yet. Run `.venv/bin/python -m backend.database` to add the
+empty table to an existing database without replacing users or windows.
