@@ -1,0 +1,268 @@
+{
+  "User": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Id",
+        "type": "string"
+      },
+      "display_name": {
+        "minLength": 1,
+        "title": "Display Name",
+        "type": "string"
+      },
+      "is_demo": {
+        "const": true,
+        "default": true,
+        "title": "Is Demo",
+        "type": "boolean"
+      },
+      "timezone": {
+        "default": "UTC",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "availability_visible_to": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Availability Visible To",
+        "type": "array"
+      },
+      "activity_preferences": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Activity Preferences",
+        "type": "array"
+      },
+      "boundaries": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Boundaries",
+        "type": "array"
+      }
+    },
+    "required": [
+      "id",
+      "display_name"
+    ],
+    "title": "User",
+    "type": "object"
+  },
+  "SocialWindow": {
+    "additionalProperties": false,
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      },
+      "user_id": {
+        "title": "User Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start",
+      "end",
+      "user_id"
+    ],
+    "title": "SocialWindow",
+    "type": "object"
+  },
+  "BusyInterval": {
+    "additionalProperties": false,
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      },
+      "user_id": {
+        "title": "User Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start",
+      "end",
+      "user_id"
+    ],
+    "title": "BusyInterval",
+    "type": "object"
+  },
+  "HangoutRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "requester_id": {
+        "title": "Requester Id",
+        "type": "string"
+      },
+      "invitee_id": {
+        "title": "Invitee Id",
+        "type": "string"
+      },
+      "activity": {
+        "minLength": 1,
+        "title": "Activity",
+        "type": "string"
+      },
+      "duration_minutes": {
+        "exclusiveMinimum": 0,
+        "maximum": 1440,
+        "title": "Duration Minutes",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "start",
+      "end",
+      "id",
+      "requester_id",
+      "invitee_id",
+      "activity",
+      "duration_minutes"
+    ],
+    "title": "HangoutRequest",
+    "type": "object"
+  },
+  "CandidateSlot": {
+    "additionalProperties": false,
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start",
+      "end"
+    ],
+    "title": "CandidateSlot",
+    "type": "object"
+  },
+  "Proposal": {
+    "$defs": {
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "request_id": {
+        "title": "Request Id",
+        "type": "string"
+      },
+      "slot": {
+        "$ref": "#/$defs/CandidateSlot"
+      },
+      "status": {
+        "default": "pending",
+        "enum": [
+          "pending",
+          "approved",
+          "declined",
+          "scheduled"
+        ],
+        "title": "Status",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "request_id",
+      "slot"
+    ],
+    "title": "Proposal",
+    "type": "object"
+  },
+  "Approval": {
+    "additionalProperties": false,
+    "properties": {
+      "proposal_id": {
+        "title": "Proposal Id",
+        "type": "string"
+      },
+      "user_id": {
+        "title": "User Id",
+        "type": "string"
+      },
+      "decision": {
+        "enum": [
+          "approve",
+          "decline"
+        ],
+        "title": "Decision",
+        "type": "string"
+      },
+      "decided_at": {
+        "format": "date-time",
+        "title": "Decided At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "proposal_id",
+      "user_id",
+      "decision",
+      "decided_at"
+    ],
+    "title": "Approval",
+    "type": "object"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "users": [
+    {
+      "id": "demo-alex",
+      "display_name": "Alex (demo)",
+      "is_demo": true,
+      "timezone": "America/New_York",
+      "availability_visible_to": [
+        "demo-sam"
+      ],
+      "activity_preferences": [
+        "coffee"
+      ],
+      "boundaries": [
+        "Public places only"
+      ]
+    },
+    {
+      "id": "demo-sam",
+      "display_name": "Sam (demo)",
+      "is_demo": true,
+      "timezone": "America/New_York",
+      "availability_visible_to": [
+        "demo-alex"
+      ],
+      "activity_preferences": [
+        "coffee"
+      ],
+      "boundaries": [
+        "No late evenings"
+      ]
+    }
+  ],
+  "social_windows": [
+    {
+      "user_id": "demo-alex",
+      "start": "2026-10-18T14:00:00-04:00",
+      "end": "2026-10-18T18:00:00-04:00"
+    },
+    {
+      "user_id": "demo-sam",
+      "start": "2026-10-18T15:00:00-04:00",
+      "end": "2026-10-18T19:00:00-04:00"
+    }
+  ],
+  "busy_intervals": [
+    {
+      "user_id": "demo-alex",
+      "start": "2026-10-18T16:00:00-04:00",
+      "end": "2026-10-18T17:00:00-04:00"
+    },
+    {
+      "user_id": "demo-sam",
+      "start": "2026-10-18T17:30:00-04:00",
+      "end": "2026-10-18T18:00:00-04:00"
+    }
+  ],
+  "request": {
+    "id": "request-demo-1",
+    "requester_id": "demo-alex",
+    "invitee_id": "demo-sam",
+    "activity": "coffee",
+    "duration_minutes": 60,
+    "start": "2026-10-18T14:00:00-04:00",
+    "end": "2026-10-18T19:00:00-04:00"
+  },
+  "proposal": {
+    "id": "proposal-demo-1",
+    "request_id": "request-demo-1",
+    "slot": {
+      "start": "2026-10-18T15:00:00-04:00",
+      "end": "2026-10-18T16:00:00-04:00"
+    },
+    "status": "pending"
+  },
+  "approvals": []
+}

@@ -1,0 +1,26 @@
+"""Calendar boundary: free/busy only; event creation requires backend approval checks."""
+from typing import Protocol
+from backend.models import BusyInterval, Interval, Proposal
+
+class CalendarAdapter(Protocol):
+    async def get_busy(self, user_id: str, search: Interval) -> list[BusyInterval]: ...
+    async def create_event(self, proposal: Proposal, participant_ids: list[str], idempotency_key: str) -> str: ...
+
+class MockCalendarAdapter:
+    def __init__(self, busy: list[BusyInterval] | None = None):
+        self.busy = busy or []
+        self.events: dict[str, str] = {}
+
+    async def get_busy(self, user_id: str, search: Interval) -> list[BusyInterval]:
+        return [b for b in self.busy if b.user_id == user_id and b.start < search.end and b.end > search.start]
+
+    async def create_event(self, proposal: Proposal, participant_ids: list[str], idempotency_key: str) -> str:
+        # Caller must enforce permissions and both approvals, even for mocks.
+        return self.events.setdefault(idempotency_key, f"demo-event-{proposal.id}")
+
+class GoogleCalendarAdapter:
+    async def get_busy(self, user_id: str, search: Interval) -> list[BusyInterval]:
+        raise NotImplementedError("Calendar lane: implement OAuth and Google free/busy")
+
+    async def create_event(self, proposal: Proposal, participant_ids: list[str], idempotency_key: str) -> str:
+        raise NotImplementedError("Calendar lane: implement idempotent event creation")
