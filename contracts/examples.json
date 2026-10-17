@@ -1,8 +1,8 @@
 {
   "users": [
     {
-      "id": "demo-alex",
-      "display_name": "Alex (demo)",
+      "id": "demo-zaynah",
+      "display_name": "Zaynah (demo)",
       "is_demo": true,
       "community": "georgia_tech",
       "timezone": "America/New_York",
@@ -28,8 +28,8 @@
       }
     },
     {
-      "id": "demo-sam",
-      "display_name": "Sam (demo)",
+      "id": "demo-daniella",
+      "display_name": "Daniella (demo)",
       "is_demo": true,
       "community": "georgia_tech",
       "timezone": "America/New_York",
@@ -53,8 +53,8 @@
       }
     },
     {
-      "id": "demo-jordan",
-      "display_name": "Jordan (demo)",
+      "id": "demo-kusum",
+      "display_name": "Kusum (demo)",
       "is_demo": true,
       "community": "georgia_tech",
       "timezone": "America/New_York",
@@ -78,8 +78,8 @@
       }
     },
     {
-      "id": "demo-taylor",
-      "display_name": "Taylor (demo)",
+      "id": "demo-mariann",
+      "display_name": "Mariann (demo)",
       "is_demo": true,
       "community": "georgia_tech",
       "timezone": "America/New_York",
@@ -106,16 +106,16 @@
   "friend_requests": [
     {
       "id": "friend-1",
-      "sender_id": "demo-alex",
-      "recipient_id": "demo-sam",
+      "sender_id": "demo-zaynah",
+      "recipient_id": "demo-daniella",
       "status": "accepted",
       "created_at": "2026-10-17T13:00:00-04:00",
       "responded_at": "2026-10-17T13:05:00-04:00"
     },
     {
       "id": "friend-2",
-      "sender_id": "demo-taylor",
-      "recipient_id": "demo-alex",
+      "sender_id": "demo-mariann",
+      "recipient_id": "demo-zaynah",
       "status": "pending",
       "created_at": "2026-10-17T14:00:00-04:00",
       "responded_at": null
@@ -124,7 +124,7 @@
   "social_windows": [
     {
       "id": "window-1",
-      "user_id": "demo-alex",
+      "user_id": "demo-zaynah",
       "start": "2026-10-18T14:00:00-04:00",
       "end": "2026-10-18T18:00:00-04:00",
       "allowed_activities": [
@@ -139,7 +139,7 @@
     },
     {
       "id": "window-2",
-      "user_id": "demo-sam",
+      "user_id": "demo-daniella",
       "start": "2026-10-18T15:00:00-04:00",
       "end": "2026-10-18T19:00:00-04:00",
       "allowed_activities": [
@@ -153,7 +153,7 @@
     },
     {
       "id": "window-3",
-      "user_id": "demo-alex",
+      "user_id": "demo-zaynah",
       "start": "2026-10-18T19:00:00-04:00",
       "end": "2026-10-18T21:00:00-04:00",
       "allowed_activities": [
@@ -167,7 +167,7 @@
     },
     {
       "id": "window-4",
-      "user_id": "demo-alex",
+      "user_id": "demo-zaynah",
       "start": "2026-10-18T12:00:00-04:00",
       "end": "2026-10-18T13:00:00-04:00",
       "allowed_activities": [
@@ -176,14 +176,14 @@
       "visibility": {
         "audience": "selected_friends",
         "selected_friend_ids": [
-          "demo-sam"
+          "demo-daniella"
         ]
       },
       "sharing_mode": "visible"
     },
     {
       "id": "window-5",
-      "user_id": "demo-sam",
+      "user_id": "demo-daniella",
       "start": "2026-10-18T12:00:00-04:00",
       "end": "2026-10-18T13:00:00-04:00",
       "allowed_activities": [
@@ -198,20 +198,20 @@
   ],
   "busy_intervals": [
     {
-      "user_id": "demo-alex",
+      "user_id": "demo-zaynah",
       "start": "2026-10-18T16:00:00-04:00",
       "end": "2026-10-18T17:00:00-04:00"
     },
     {
-      "user_id": "demo-sam",
+      "user_id": "demo-daniella",
       "start": "2026-10-18T17:30:00-04:00",
       "end": "2026-10-18T18:00:00-04:00"
     }
   ],
   "request": {
     "id": "request-demo-1",
-    "requester_id": "demo-alex",
-    "invitee_id": "demo-sam",
+    "requester_id": "demo-zaynah",
+    "invitee_id": "demo-daniella",
     "start": "2026-10-18T14:00:00-04:00",
     "end": "2026-10-18T19:00:00-04:00",
     "allowed_activities": [
@@ -253,7 +253,7 @@
   "approvals": [],
   "frontend_examples": {
     "create_request": {
-      "invitee_id": "demo-sam",
+      "invitee_id": "demo-daniella",
       "start": "2026-10-18T14:00:00-04:00",
       "end": "2026-10-18T19:00:00-04:00",
       "allowed_activities": [
@@ -266,10 +266,10 @@
       ],
       "location": "Tech Square"
     },
-    "schedule_for_sam": {
+    "schedule_for_daniella": {
       "user": {
-        "id": "demo-alex",
-        "display_name": "Alex (demo)",
+        "id": "demo-zaynah",
+        "display_name": "Zaynah (demo)",
         "is_demo": true,
         "community": "georgia_tech"
       },
@@ -307,10 +307,10 @@
         }
       ]
     },
-    "schedule_for_jordan": {
+    "schedule_for_kusum": {
       "user": {
-        "id": "demo-alex",
-        "display_name": "Alex (demo)",
+        "id": "demo-zaynah",
+        "display_name": "Zaynah (demo)",
         "is_demo": true,
         "community": "georgia_tech"
       },

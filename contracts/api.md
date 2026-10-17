@@ -25,7 +25,7 @@ All timestamps are timezone-aware ISO 8601. Intervals are half-open [start,end);
 
 ## Identity and permissions
 
-`X-Demo-User-Id` selects demo-alex, demo-sam, demo-jordan, or demo-taylor. This is a demo switcher, not production authentication. Resolve IDs through the registry, never trust a body ID as caller identity. Do not publicly deploy this mode as authenticated access.
+`X-Demo-User-Id` selects demo-zaynah, demo-daniella, demo-kusum, or demo-mariann. This is a demo switcher, not production authentication. Resolve IDs through the registry, never trust a body ID as caller identity. Do not publicly deploy this mode as authenticated access.
 
 Calendar sharing defaults to private and is independent of social-window visibility. Community requires matching simulated community membership. Friends requires an accepted relationship in either direction. Selected friends additionally requires the viewer's ID in the owner's selected list; backend validates these IDs are accepted friends and excludes self. Owners can access their own data. Viewers must never receive full User or internal busy records; project only authorized fields and clip returned intervals to query bounds.
 
@@ -75,7 +75,7 @@ The existing AgentAdapter is a foundation passthrough mock. Its signature is NOT
 
 ## Four-user demo
 
-Alex and Sam are accepted friends. Taylor has a pending request to Alex; accepting unlocks friends-only access. Jordan is a community member with no friendship to Alex. Alex has community, friends, and Sam-only windows. Sam also has a matching-only window. Fixtures include viewer-specific schedule projections to distinguish hidden calendar data from shared busy blocks. These projections illustrate the contract; permission filtering is not implemented yet.
+Zaynah and Daniella are accepted friends. Mariann has a pending request to Zaynah; accepting unlocks friends-only access. Kusum is a community member with no friendship to Zaynah. Zaynah has community, friends, and Daniella-only windows. Daniella also has a matching-only window. Fixtures include viewer-specific schedule projections to distinguish hidden calendar data from shared busy blocks. These projections illustrate the contract; permission filtering is not implemented yet.
 
 ## Regenerate schemas
 

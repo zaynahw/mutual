@@ -38,7 +38,7 @@ npm run build
 
 frontend/ contains React, TypeScript, Vite, and Tailwind. backend/ contains health, Pydantic models, interval intersection, and adapter protocols/mocks. calendar/ and agent/ reserve teammate lanes. contracts/ defines planned endpoints and demo fixtures; tests/ checks the foundation.
 
-Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, calendar writes, and demo seeding are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
+Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, and calendar writes are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
 
 ## Initial SQLite setup
 
@@ -94,4 +94,25 @@ User saving inserts or updates by ID; window creation inserts only and rejects
 an existing ID or nonexistent owner. Reads rebuild and validate Pydantic records.
 These helpers return private owner data and do not enforce viewer permissions;
 future services must filter and project results before returning them to clients.
-No API routes or demo seeding are connected to these helpers yet.
+No business API routes are connected to these helpers yet.
+
+## Seed demo data
+
+From the repository root, run:
+
+```sh
+.venv/bin/python -m backend.seed
+```
+
+This initializes the tables and inserts missing users and social windows from
+`contracts/examples.json`. An empty database receives four users (Zaynah,
+Daniella, Kusum, and Mariann) and five windows. Names label demo identities;
+preferences and schedules are fictional sample data, not the team's real data.
+A second run reports zero inserts and preserves edits to existing records.
+Seeding does not delete old records or migrate renamed identities.
+
+The seed validates records first, then inserts users and windows in one
+transaction. If an insertion fails, all new records from that run roll back.
+Set `MUTUAL_DATABASE_PATH` in the shell to target a different database file.
+Friend requests, busy intervals, requests, and proposals remain JSON examples;
+this command does not persist them, create accounts, or call Google Calendar.

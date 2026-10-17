@@ -23,16 +23,16 @@ def test_all_additional_examples():
             model.model_validate(value)
     front = data['frontend_examples']
     HangoutRequestCreate.model_validate(front['create_request'])
-    for key in ('schedule_for_sam', 'schedule_for_jordan'):
+    for key in ('schedule_for_daniella', 'schedule_for_kusum'):
         ScheduleResponse.model_validate(front[key])
-    assert front['schedule_for_jordan']['calendar_busy'] is None
-    assert front['schedule_for_sam']['calendar_busy']
+    assert front['schedule_for_kusum']['calendar_busy'] is None
+    assert front['schedule_for_daniella']['calendar_busy']
 
 
 @pytest.mark.parametrize('payload', [
     {'audience': 'selected_friends'},
-    {'audience': 'friends', 'selected_friend_ids': ['demo-sam']},
-    {'audience': 'selected_friends', 'selected_friend_ids': ['demo-sam', 'demo-sam']},
+    {'audience': 'friends', 'selected_friend_ids': ['demo-daniella']},
+    {'audience': 'selected_friends', 'selected_friend_ids': ['demo-daniella', 'demo-daniella']},
 ])
 def test_visibility_configuration(payload):
     with pytest.raises(ValidationError):
