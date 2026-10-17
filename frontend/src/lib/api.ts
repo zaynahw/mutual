@@ -100,3 +100,33 @@ export const updateMyWindow = (userId: string, windowId: string, input: SocialWi
 export async function deleteMyWindow(userId: string, windowId: string, signal: AbortSignal): Promise<void> {
   await request(windowPath(windowId), { userId, signal, method: 'DELETE' });
 }
+
+export interface FriendRequest {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'removed';
+  created_at: string;
+  responded_at: string | null;
+}
+
+const friendshipsPath = '/friend-requests';
+
+export const listFriendRequests = (userId: string, signal: AbortSignal) =>
+  requestJson<FriendRequest[]>(friendshipsPath, { userId, signal });
+
+export const sendFriendRequest = (userId: string, recipientId: string, signal: AbortSignal) =>
+  requestJson<FriendRequest>(friendshipsPath, {
+    userId, signal, method: 'POST', body: { recipient_id: recipientId },
+  });
+
+export const respondToFriendRequest = (
+  userId: string, requestId: string, decision: 'accept' | 'decline', signal: AbortSignal,
+) => requestJson<FriendRequest>(`${friendshipsPath}/${encodeURIComponent(requestId)}/respond`, {
+  userId, signal, method: 'POST', body: { decision },
+});
+
+export const removeFriendship = (userId: string, requestId: string, signal: AbortSignal) =>
+  requestJson<FriendRequest>(`${friendshipsPath}/${encodeURIComponent(requestId)}/remove`, {
+    userId, signal, method: 'POST',
+  });

@@ -107,3 +107,26 @@ def are_friends(user_a: str, user_b: str) -> bool:
             (first_id, second_id),
         ).fetchone()
     return row is not None
+
+
+def remove_friendship(request_id: str, user_id: str) -> FriendRequest:
+    """Either participant may end this exact friendship, retaining its history."""
+    with connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM friend_requests WHERE id = ?", (request_id,),
+        ).fetchone()
+        if row is None:
+            raise LookupError("Friendship not found")
+        request = FriendRequest.model_validate(dict(row))
+        if user_id not in (request.sender_id, request.recipient_id):
+            raise PermissionError("Only participants can remove this friendship")
+        if request.status == "removed":
+            return request
+        if request.status != "accepted":
+            raise ValueError("This request is not an active friendship")
+        updated = FriendRequest.model_validate({**request.model_dump(), "status": "removed"})
+        connection.execute(
+            "UPDATE friend_requests SET status = ? WHERE id = ?", ("removed", request_id),
+        )
+    return updated

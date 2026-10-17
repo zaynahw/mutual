@@ -4,6 +4,7 @@ import { checkHealth, getMe, listUsers } from './lib/api';
 import type { PublicUser, User } from './lib/api';
 import './style.css';
 import { SocialWindows } from './components/SocialWindows';
+import { Friendships } from './components/Friendships';
 
 const demoUsers = [
   { id: 'demo-zaynah', name: 'Zaynah' },
@@ -95,7 +96,8 @@ function App() {
           </dl>
         </section>
       </div>}
-      {panel.status === 'ready' && panel.selectedId === selectedId && <SocialWindows key={selectedId} user={panel.me} />}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <Friendships key={`friendships-${selectedId}`} currentUser={panel.me} users={panel.users} />}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <SocialWindows key={`windows-${selectedId}`} user={panel.me} />}
     </div>
   </main>;
 }

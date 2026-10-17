@@ -199,8 +199,8 @@ to callers. `respond_to_friend_request(request_id, recipient_id, decision)`
 allows the recipient to accept/decline atomically. Repeating the same answer
 preserves its timestamp; changing a finalized answer is rejected. LookupError
 means missing, PermissionError means non-recipient, and ValueError means an
-invalid/conflicting decision. Friendship API routes are implemented; UI and
-friendship seed inserts are not connected yet. Run `.venv/bin/python -m backend.database` to add the
+invalid/conflicting decision. Friendship API routes and the demo panel are implemented; friendship seed
+inserts are not connected yet. Run `.venv/bin/python -m backend.database` to add the
 empty table to an existing database without replacing users or windows.
 
 ## Friend request API
@@ -213,4 +213,47 @@ with POST /friend-requests. Switch the header to demo-daniella and use GET
 answer. Repeated same answers preserve the result; conflicting answers return
 409. Pending/accepted pairs cannot have duplicate requests in either direction.
 These routes do not yet affect cross-user schedule access or selected-friends
-window editing, and no friendship buttons have been added to the frontend yet.
+window editing, and the frontend now provides a demo friendship panel.
+
+## Demo friendship panel
+
+The Friendships panel uses the public user directory for names, excluding the
+selected user from Add friend choices. Send a request, switch to the recipient,
+and Accept or Decline. Pending and accepted pairs cannot be requested again;
+declined history permits a new request. Incoming/outgoing requests, accepted
+friends, and declined history are shown separately. Refresh requests loads changes
+made in another browser tab. Updates disable actions until completion, report
+errors, and reset on demo-user switching. An already-received write can complete
+for the original user even if its browser request is cancelled while switching.
+
+`src/components/Friendships.tsx` coordinates state and API actions;
+`src/lib/friendships.ts` determines active pairs without letting old declined
+history hide a newer request. `src/lib/api.ts` reuses the shared request helper.
+These relationships are real SQLite demo records, but other-user schedule
+filtering and selected-friends controls remain future work.
+
+Run all frontend logic and timezone checks with Node 22.6+:
+
+```sh
+cd frontend
+node --experimental-strip-types --test tests/*.test.mjs
+```
+
+## Remove and re-add friends
+
+Accepted friends have a Remove friend control with inline confirmation. Either
+participant can remove that specific relationship using POST
+/friend-requests/{id}/remove. Missing requests return 404, outsiders 403, and
+pending/declined records 409. Repeating removal returns the same removed record.
+The original acceptance timestamp is retained; a separate removal timestamp is
+not recorded. Removed records stay in Relationship history. A new friend request
+can be sent in either direction and must be accepted again. Replaying removal
+of an old record cannot remove a newer friendship.
+
+Run `.venv/bin/python -m backend.database` when upgrading an existing checkout.
+Initialization transactionally rebuilds the old friend_requests table to permit
+removed status, preserves all rows, and recreates its unique active-pair index.
+New databases use the updated schema directly. Upgrade failures roll back the
+friendship table changes. Future schema changes need their own explicit migration.
+The API/schema and frontend recognize removed as inactive. Viewer permissions
+will use current accepted friendships once schedule filtering is implemented.

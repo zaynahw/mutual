@@ -1,6 +1,6 @@
 # Mutual API contract — bounded negotiation MVP
 
-`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The three /friend-requests routes are also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
+`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The send/list/respond/remove /friend-requests routes are also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
 
 ## Agreed scope
 
@@ -43,6 +43,7 @@ Calendar read-sharing permission does not determine matching permission: backend
 | POST /friend-requests | FriendRequestCreate | 201 FriendRequest | Implemented; sender from caller; known distinct recipient |
 | GET /friend-requests | none | 200 FriendRequest[] | Implemented; caller is sender or recipient |
 | POST /friend-requests/{id}/respond | FriendRequestRespond | 200 FriendRequest | Implemented; recipient only; server stamps responded_at |
+| POST /friend-requests/{id}/remove | none | 200 FriendRequest | Implemented; either participant; accepted -> removed; replay idempotent |
 | GET /users/me/social-windows | none | 200 SocialWindow[] | Implemented; owner only |
 | POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends returns temporary 409 until friendship setup |
 | PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends temporarily returns 409 |
@@ -111,5 +112,16 @@ POST /friend-requests/{id}/respond returns 403 for a non-recipient, 404 for a
 missing request, 422 for a malformed decision, and 409 for changing a finalized
 decision. Repeating the same answer returns the unchanged record and timestamp.
 Acceptance is stored and available through are_friends; cross-user schedule
-filtering and selected-friends validation remain unimplemented. Friendship UI
-and fixture friendship seeding are not connected yet.
+filtering and selected-friends validation remain unimplemented. The demo friendship UI is connected; fixture friendship seeding is not.
+
+## Removing friendships
+
+FriendRequest.status also permits removed, which retains responded_at from the
+original acceptance. POST /friend-requests/{id}/remove requires either
+participant's demo identity and an accepted record. It returns the removed
+record, 404 if missing, 403 for a non-participant, or 409 for pending/declined
+records. Repeating removal of the same record returns it unchanged. Removed
+records never count as friendship and do not block new requests. Acceptance of
+a new request is required to reconnect. Respond cannot reopen removed records.
+Removal is scoped to the request ID, so replaying an old removal cannot affect a
+new accepted relationship. Demo UI provides confirmation and relationship history.

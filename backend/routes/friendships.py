@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.dependencies import CurrentUser
 from backend.friendships import (
-    create_friend_request, list_friend_requests, respond_to_friend_request,
+    create_friend_request, list_friend_requests, remove_friendship, respond_to_friend_request,
 )
 from backend.models import FriendRequest, FriendRequestCreate, FriendRequestRespond
 from backend.repositories import get_user
@@ -41,6 +41,18 @@ def respond(
 ) -> FriendRequest:
     try:
         return respond_to_friend_request(request_id, current_user.id, body.decision)
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.post("/{request_id}/remove", response_model=FriendRequest)
+def remove(request_id: str, current_user: CurrentUser) -> FriendRequest:
+    try:
+        return remove_friendship(request_id, current_user.id)
     except PermissionError as error:
         raise HTTPException(status_code=403, detail=str(error)) from error
     except LookupError as error:
