@@ -3,14 +3,7 @@
  */
 export function zonedInputToISO(value: string, timeZone: string): string {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error('Enter a complete date and time.');
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  });
-  const wallTime = (instant: number) => {
-    const parts = Object.fromEntries(formatter.formatToParts(new Date(instant)).map(part => [part.type, part.value]));
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
-  };
+  const wallTime = (instant: number) => isoToZonedInput(new Date(instant).toISOString(), timeZone);
   const target = Date.parse(`${value}:00Z`);
   if (!Number.isFinite(target) || new Date(target).toISOString().slice(0, 16) !== value) {
     throw new Error('Enter a valid date and time.');

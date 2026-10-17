@@ -168,3 +168,15 @@ enforce ownership and return 404 for missing/non-owned windows. Switching users
 clears editing and confirmation state. Editing selected-friends windows remains
 disabled until friendship validation exists; owner deletion is available.
 Deletion has no undo. The seed command restores missing fixture windows if rerun.
+
+## Frontend code organization
+
+- `src/lib/api.ts`: shared request/error handling and typed endpoint functions.
+- `src/lib/time.ts`: profile-timezone input conversion and formatting.
+- `src/components/SocialWindows.tsx`: saved data, form state, and API actions.
+- `src/components/SocialWindowForm.tsx`: form controls and validation messages.
+- `src/components/SocialWindowList.tsx`: saved windows and edit/delete controls.
+
+The form and list receive values and callbacks from SocialWindows; they do not
+make network requests. Backend create/edit visibility checks share one helper
+in `backend/routes/social_windows.py` until friendship enforcement is added.

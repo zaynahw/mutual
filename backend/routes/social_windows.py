@@ -11,6 +11,12 @@ from backend.repositories import (
 
 router = APIRouter(prefix="/users/me/social-windows", tags=["social windows"])
 
+def validate_window_visibility(body: SocialWindowCreate) -> None:
+    """Shared create/edit restriction until friendship checks are available."""
+    if body.visibility.audience == "selected_friends":
+        raise HTTPException(status_code=409, detail="Selected-friends sharing needs friendship setup")
+
+
 
 @router.get("", response_model=list[SocialWindow])
 def get_my_windows(current_user: CurrentUser) -> list[SocialWindow]:
@@ -19,8 +25,7 @@ def get_my_windows(current_user: CurrentUser) -> list[SocialWindow]:
 
 @router.post("", response_model=SocialWindow, status_code=201)
 def add_my_window(body: SocialWindowCreate, current_user: CurrentUser) -> SocialWindow:
-    if body.visibility.audience == "selected_friends":
-        raise HTTPException(status_code=409, detail="Selected-friends sharing needs friendship setup")
+    validate_window_visibility(body)
     window = SocialWindow(**body.model_dump(), id=f"window-{uuid4()}", user_id=current_user.id)
     create_social_window(window)
     return window
@@ -28,8 +33,7 @@ def add_my_window(body: SocialWindowCreate, current_user: CurrentUser) -> Social
 
 @router.put("/{window_id}", response_model=SocialWindow)
 def edit_my_window(window_id: str, body: SocialWindowCreate, current_user: CurrentUser) -> SocialWindow:
-    if body.visibility.audience == "selected_friends":
-        raise HTTPException(status_code=409, detail="Selected-friends sharing needs friendship setup")
+    validate_window_visibility(body)
     window = SocialWindow(**body.model_dump(), id=window_id, user_id=current_user.id)
     if not update_social_window(window):
         raise HTTPException(status_code=404, detail="Social window not found")
