@@ -38,7 +38,27 @@ npm run build
 
 frontend/ contains React, TypeScript, Vite, and Tailwind. backend/ contains health, Pydantic models, interval intersection, and adapter protocols/mocks. calendar/ and agent/ reserve teammate lanes. contracts/ defines planned endpoints and demo fixtures; tests/ checks the foundation.
 
-Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, calendar writes, and SQLite persistence are future lane work. SQLite remains the intended MVP database. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
+Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, calendar writes, and application save/read functions are future lane work. Initial SQLite tables and connection handling are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
+
+## Initial SQLite setup
+
+Create the empty `users` and `social_windows` tables:
+
+```sh
+.venv/bin/python -m backend.database
+```
+
+This creates `backend/mutual.db`, which Git ignores. Running the command again
+preserves existing records. It does not seed demo data or connect API routes.
+Set `MUTUAL_DATABASE_PATH` in your shell to use a different file; the parent
+directory must exist. The module does not automatically load the root `.env`.
+
+`backend/database.py` exposes `connect()` as a context manager: successful work
+is committed, exceptions roll it back, and the connection always closes. Records
+will be saved as validated model JSON with IDs and ownership in separate SQL
+columns. SQLite enforces unique IDs and existing owners; callers must enforce
+Pydantic validation, JSON/column consistency, and access permissions. This is
+initial schema setup, not a migration system. Database tests use temporary files.
 
 Scheduling returns maximal common free intervals meeting the duration. Future proposal logic selects an exact duration-sized slot, checks permissions and boundaries, validates model output, and requires both approvals before calendar creation.
 
