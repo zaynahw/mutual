@@ -46,3 +46,44 @@ export async function checkHealth(): Promise<string> {
   const data = await response.json() as { status: string };
   return data.status;
 }
+
+export interface SocialWindowInput {
+  start: string;
+  end: string;
+  allowed_activities: Activity[];
+  visibility: User['calendar_sharing'];
+  sharing_mode: 'visible' | 'matching_only';
+}
+export interface SocialWindow extends SocialWindowInput {
+  id: string;
+  user_id: string;
+}
+export const listMyWindows = (userId: string, signal: AbortSignal) =>
+  get<SocialWindow[]>('/users/me/social-windows', userId, signal);
+
+async function writeWindow(userId: string, method: 'POST' | 'PUT' | 'DELETE', path: string, signal: AbortSignal, input?: SocialWindowInput): Promise<Response> {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: { 'X-Demo-User-Id': userId, ...(input ? { 'Content-Type': 'application/json' } : {}) },
+    ...(input ? { body: JSON.stringify(input) } : {}), signal,
+  });
+  if (!response.ok) {
+    const data = await response.json() as { detail?: string | { msg: string }[] };
+    const detail = typeof data.detail === 'string' ? data.detail
+      : Array.isArray(data.detail) ? data.detail.map(item => item.msg).join('; ') : 'Could not change window';
+    throw new Error(detail);
+  }
+  return response;
+}
+
+export async function createMyWindow(userId: string, input: SocialWindowInput, signal: AbortSignal): Promise<SocialWindow> {
+  return (await writeWindow(userId, 'POST', '/users/me/social-windows', signal, input)).json();
+}
+
+export async function updateMyWindow(userId: string, windowId: string, input: SocialWindowInput, signal: AbortSignal): Promise<SocialWindow> {
+  return (await writeWindow(userId, 'PUT', `/users/me/social-windows/${encodeURIComponent(windowId)}`, signal, input)).json();
+}
+
+export async function deleteMyWindow(userId: string, windowId: string, signal: AbortSignal): Promise<void> {
+  await writeWindow(userId, 'DELETE', `/users/me/social-windows/${encodeURIComponent(windowId)}`, signal);
+}

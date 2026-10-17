@@ -1,7 +1,7 @@
 """Demo identity selection; this is not production authentication."""
 from typing import Annotated
 
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
 
 from backend.models import User
 from backend.repositories import get_user
@@ -16,3 +16,6 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=401, detail="Unknown demo user")
     return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]

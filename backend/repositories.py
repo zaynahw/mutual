@@ -68,3 +68,22 @@ def list_social_windows(user_id: str) -> list[SocialWindow]:
         ).fetchall()
 
     return [SocialWindow.model_validate_json(row["data"]) for row in rows]
+
+
+def update_social_window(window: SocialWindow) -> bool:
+    """Update only when the ID and owner both match; never change ownership."""
+    with connect() as connection:
+        result = connection.execute(
+            "UPDATE social_windows SET data = ? WHERE id = ? AND user_id = ?",
+            (window.model_dump_json(), window.id, window.user_id),
+        )
+    return result.rowcount == 1
+
+
+def delete_social_window(window_id: str, user_id: str) -> bool:
+    with connect() as connection:
+        result = connection.execute(
+            "DELETE FROM social_windows WHERE id = ? AND user_id = ?",
+            (window_id, user_id),
+        )
+    return result.rowcount == 1

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { checkHealth, getMe, listUsers } from './lib/api';
 import type { PublicUser, User } from './lib/api';
 import './style.css';
+import { SocialWindows } from './components/SocialWindows';
 
 const demoUsers = [
   { id: 'demo-zaynah', name: 'Zaynah' },
@@ -94,6 +95,7 @@ function App() {
           </dl>
         </section>
       </div>}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <SocialWindows key={selectedId} user={panel.me} />}
     </div>
   </main>;
 }

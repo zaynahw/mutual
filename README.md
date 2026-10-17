@@ -38,7 +38,7 @@ npm run build
 
 frontend/ contains React, TypeScript, Vite, and Tailwind. backend/ contains health, Pydantic models, interval intersection, and adapter protocols/mocks. calendar/ and agent/ reserve teammate lanes. contracts/ defines planned endpoints and demo fixtures; tests/ checks the foundation.
 
-GET /health, GET /users, and GET /users/me are implemented. Other business routes, scheduling UI, production authentication, OAuth, local model, and calendar writes are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
+GET /health, GET /users, GET /users/me, GET/POST /users/me/social-windows, and PUT/DELETE /users/me/social-windows/{id} are implemented. Other business routes, scheduling UI, production authentication, OAuth, local model, and calendar writes are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
 
 ## Initial SQLite setup
 
@@ -94,7 +94,7 @@ User saving inserts or updates by ID; window creation inserts only and rejects
 an existing ID or nonexistent owner. Reads rebuild and validate Pydantic records.
 These helpers return private owner data and do not enforce viewer permissions;
 future services must filter and project results before returning them to clients.
-The read-only user API routes use these helpers; window API routes are not connected yet.
+The read-only user API routes use these helpers; owner window GET/POST routes also use these helpers.
 
 ## Seed demo data
 
@@ -121,8 +121,8 @@ this command does not persist them, create accounts, or call Google Calendar.
 
 Seed first with `.venv/bin/python -m backend.seed`, start the backend and frontend
 using the commands above, then open http://localhost:5173. Select a demo user to
-load the public directory and that owner's full settings from SQLite. The panel
-is read-only; it is a temporary integration view for the frontend lane. Switching
+load the public directory and that owner's full settings from SQLite. Profile settings remain read-only; the social availability panel supports
+creating, listing, editing, and deleting owner windows. This is a temporary integration view for the frontend lane. Switching
 users cancels pending requests and hides the previous profile. Reload data retries
 failed requests. The existing health button remains available.
 
@@ -137,3 +137,34 @@ Example request (or use Try it out in http://localhost:8000/docs):
 ```sh
 curl http://localhost:8000/users/me -H "X-Demo-User-Id: demo-zaynah"
 ```
+
+## Owner social availability
+
+The demo panel lists all windows belonging to the selected user and supports
+creating one-time windows with activities, audience, and sharing mode. Start/end
+inputs use the selected profile's timezone, independently of the browser timezone;
+DST gaps or repeated times require choosing another time. Saved UTC timestamps
+are displayed in the owner's timezone. New windows default to private. Selected
+friends is disabled until friendship storage exists. Existing seeded windows
+remain visible to their owner. Cross-user browsing and matching are future work.
+
+Changing users resets the window form. If a save request was already received by
+the backend before switching, it can still complete for its original owner;
+cancelling a browser request does not undo a committed write.
+
+Timezone conversion checks (Node 22.6+ with type stripping):
+
+```sh
+cd frontend
+node --experimental-strip-types --test tests/time.test.mjs
+```
+
+## Edit or delete social windows
+
+Each saved window has Edit and Delete controls. Edit fills the form in the
+profile's timezone; Save changes persists the replacement and Cancel editing
+leaves the record unchanged. Delete requires an inline confirmation. Both routes
+enforce ownership and return 404 for missing/non-owned windows. Switching users
+clears editing and confirmation state. Editing selected-friends windows remains
+disabled until friendship validation exists; owner deletion is available.
+Deletion has no undo. The seed command restores missing fixture windows if rerun.

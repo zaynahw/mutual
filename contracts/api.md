@@ -1,6 +1,6 @@
 # Mutual API contract — bounded negotiation MVP
 
-`GET /health`, `GET /users`, and `GET /users/me` are implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
+`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
 
 ## Agreed scope
 
@@ -43,10 +43,10 @@ Calendar read-sharing permission does not determine matching permission: backend
 | POST /friend-requests | FriendRequestCreate | 201 FriendRequest | Sender from caller; known distinct recipient |
 | GET /friend-requests | none | 200 FriendRequest[] | Caller is sender or recipient |
 | POST /friend-requests/{id}/respond | FriendRequestRespond | 200 FriendRequest | Recipient only; server stamps responded_at |
-| GET /users/me/social-windows | none | 200 SocialWindow[] | Owner only |
-| POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Server generates ID and assigns caller |
-| PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Owner only |
-| DELETE /users/me/social-windows/{id} | none | 204 no body | Owner only |
+| GET /users/me/social-windows | none | 200 SocialWindow[] | Implemented; owner only |
+| POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends returns temporary 409 until friendship setup |
+| PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends temporarily returns 409 |
+| DELETE /users/me/social-windows/{id} | none | 204 no body | Implemented; owner only |
 | POST /hangout-requests | HangoutRequestCreate | 201 HangoutRequest | Server assigns ID/requester; known distinct invitee |
 | POST /hangout-requests/{id}/candidates | none | 200 CandidateOption[] | Participants only; both window policies and hard constraints enforced |
 | POST /hangout-requests/{id}/negotiate | none | 201 Proposal | Explicit user action; backend coordinates agents and validates result; 409 if no match |
@@ -55,7 +55,7 @@ Calendar read-sharing permission does not determine matching permission: backend
 | POST /proposals/{id}/approvals | ApprovalCreate | 200 ProposalResponse | Caller must be participant; server supplies identity/time |
 | POST /proposals/{id}/calendar-event | none; Idempotency-Key header | 201 CalendarEventResponse; replay 200 | Both approvals and final validation required |
 
-Create-input schemas deliberately omit IDs, caller identity, status, and server timestamps. Updates to another user's resources return 403. Creation of requests may precede finding a match; candidates can be empty. Calendar OAuth routes are deferred to the calendar lane.
+Create-input schemas deliberately omit IDs, caller identity, status, and server timestamps. Window update/delete returns the same 404 for missing and non-owned records; other ownership-denied operations use 403. Creation of requests may precede finding a match; candidates can be empty. Calendar OAuth routes are deferred to the calendar lane.
 
 ## Proposal lifecycle and enforcement
 
@@ -80,3 +80,23 @@ Zaynah and Daniella are accepted friends. Mariann has a pending request to Zayna
 ## Regenerate schemas
 
 Run `.venv/bin/python -m backend.scripts.export_schemas` from the repository root. Commit models, generated schemas, fixtures, and contract changes together after review. User read routes are implemented against SQLite. Other business routes remain planned. Seed the database before running user routes.
+
+## Owner social-window implementation
+
+GET and POST /users/me/social-windows are database-backed. Owner reads include
+private and matching-only windows. Creation accepts private/community/friends;
+selected_friends is temporarily rejected with 409 until accepted-friend checks
+can be implemented. Existing seeded selected-friends windows remain readable.
+The API requires offset-aware timestamps; the demo form converts from the owner's
+IANA timezone to UTC and rejects DST gaps/repeated times. No cross-user schedule
+browsing, friendship enforcement, or activity-aware matching is implemented yet.
+
+## Owner window edits and deletion
+
+PUT replaces editable fields but preserves the URL ID and caller ownership.
+DELETE returns 204 with no body. Both SQL operations match ID and owner in one
+statement; missing and non-owned IDs return identical 404 responses. Invalid
+updates leave the stored record unchanged. Selected-friends edits remain deferred;
+seeded selected-friends windows can still be deleted by their owner. There is no
+undo for deletion. Re-running the seed restores missing fixture windows, while
+preserving edits to existing records.

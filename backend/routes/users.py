@@ -1,14 +1,11 @@
 """Read-only public directory and private owner profile."""
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends
-
-from backend.dependencies import get_current_user
+from backend.dependencies import CurrentUser
 from backend.models import PublicUser, User
 from backend.repositories import list_users
 
 router = APIRouter(prefix="/users", tags=["users"])
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("", response_model=list[PublicUser])
