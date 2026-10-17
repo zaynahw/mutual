@@ -103,7 +103,7 @@ class FriendRequest(Model):
     id: str
     sender_id: DemoUserId
     recipient_id: DemoUserId
-    status: Literal["pending", "accepted", "declined"] = "pending"
+    status: Literal["pending", "accepted", "declined", "removed"] = "pending"
     created_at: AwareDatetime
     responded_at: AwareDatetime | None = None
 

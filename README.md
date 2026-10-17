@@ -42,7 +42,7 @@ GET /health, GET /users, GET /users/me, GET/POST /users/me/social-windows, and P
 
 ## Initial SQLite setup
 
-Create the empty `users` and `social_windows` tables:
+Create missing `users`, `social_windows`, and `friend_requests` tables:
 
 ```sh
 .venv/bin/python -m backend.database
@@ -168,3 +168,92 @@ enforce ownership and return 404 for missing/non-owned windows. Switching users
 clears editing and confirmation state. Editing selected-friends windows remains
 disabled until friendship validation exists; owner deletion is available.
 Deletion has no undo. The seed command restores missing fixture windows if rerun.
+
+## Frontend code organization
+
+- `src/lib/api.ts`: shared request/error handling and typed endpoint functions.
+- `src/lib/time.ts`: profile-timezone input conversion and formatting.
+- `src/components/SocialWindows.tsx`: saved data, form state, and API actions.
+- `src/components/SocialWindowForm.tsx`: form controls and validation messages.
+- `src/components/SocialWindowList.tsx`: saved windows and edit/delete controls.
+
+The form and list receive values and callbacks from SocialWindows; they do not
+make network requests. Backend create/edit visibility checks share one helper
+in `backend/routes/social_windows.py` until friendship enforcement is added.
+
+## Friendship storage foundation
+
+The `friend_requests` table stores sender/recipient IDs, status, and timestamps
+as SQL columns. Foreign keys require existing users; checks reject self-requests
+and inconsistent pending/answered states. A unique index treats both directions
+as the same pair and permits only one pending or accepted request per pair.
+Declined history may coexist with a new request. Pydantic and future service code
+must validate aware timestamps and response ordering; SQL does not parse these
+text timestamp fields. `backend/friendships.py` provides `are_friends(user_a, user_b)`, an
+ordered-pair lookup that returns true only for an accepted request. It also
+provides `create_friend_request(sender_id, recipient_id)` and
+`list_friend_requests(user_id)` for pending creation and incoming/outgoing history.
+These internal functions do not authenticate callers; future routes must derive
+IDs from the selected identity. Duplicate/unknown-user SQLite errors propagate
+to callers. `respond_to_friend_request(request_id, recipient_id, decision)`
+allows the recipient to accept/decline atomically. Repeating the same answer
+preserves its timestamp; changing a finalized answer is rejected. LookupError
+means missing, PermissionError means non-recipient, and ValueError means an
+invalid/conflicting decision. Friendship API routes and the demo panel are implemented; friendship seed
+inserts are not connected yet. Run `.venv/bin/python -m backend.database` to add the
+empty table to an existing database without replacing users or windows.
+
+## Friend request API
+
+All routes require a seeded `X-Demo-User-Id`. Use Swagger at
+http://localhost:8000/docs to send `{"recipient_id":"demo-daniella"}` as Zaynah
+with POST /friend-requests. Switch the header to demo-daniella and use GET
+/friend-requests to find its ID, then POST /friend-requests/{id}/respond with
+`{"decision":"accept"}` or `{"decision":"decline"}`. Only the recipient may
+answer. Repeated same answers preserve the result; conflicting answers return
+409. Pending/accepted pairs cannot have duplicate requests in either direction.
+These routes do not yet affect cross-user schedule access or selected-friends
+window editing, and the frontend now provides a demo friendship panel.
+
+## Demo friendship panel
+
+The Friendships panel uses the public user directory for names, excluding the
+selected user from Add friend choices. Send a request, switch to the recipient,
+and Accept or Decline. Pending and accepted pairs cannot be requested again;
+declined history permits a new request. Incoming/outgoing requests, accepted
+friends, and declined history are shown separately. Refresh requests loads changes
+made in another browser tab. Updates disable actions until completion, report
+errors, and reset on demo-user switching. An already-received write can complete
+for the original user even if its browser request is cancelled while switching.
+
+`src/components/Friendships.tsx` coordinates state and API actions;
+`src/lib/friendships.ts` determines active pairs without letting old declined
+history hide a newer request. `src/lib/api.ts` reuses the shared request helper.
+These relationships are real SQLite demo records, but other-user schedule
+filtering and selected-friends controls remain future work.
+
+Run all frontend logic and timezone checks with Node 22.6+:
+
+```sh
+cd frontend
+node --experimental-strip-types --test tests/*.test.mjs
+```
+
+## Remove and re-add friends
+
+Accepted friends have a Remove friend control with inline confirmation. Either
+participant can remove that specific relationship using POST
+/friend-requests/{id}/remove. Missing requests return 404, outsiders 403, and
+pending/declined records 409. Repeating removal returns the same removed record.
+The original acceptance timestamp is retained; a separate removal timestamp is
+not recorded. Removed records stay in Relationship history. A new friend request
+can be sent in either direction and must be accepted again. Replaying removal
+of an old record cannot remove a newer friendship.
+
+Run `.venv/bin/python -m backend.database` when upgrading an existing checkout.
+Initialization transactionally rebuilds the old friend_requests table to permit
+removed status, preserves all rows, and recreates its unique active-pair index.
+New databases use the updated schema directly. Upgrade failures roll back the
+friendship table changes. Future schema changes need their own explicit migration.
+The API/schema and frontend recognize removed as inactive. Viewer permissions
+will use current accepted friendships once schedule filtering is implemented.

@@ -443,7 +443,8 @@
         "enum": [
           "pending",
           "accepted",
-          "declined"
+          "declined",
+          "removed"
         ],
         "title": "Status",
         "type": "string"

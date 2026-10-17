@@ -24,26 +24,53 @@ export interface User extends PublicUser {
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
-async function get<T>(path: string, userId: string, signal: AbortSignal): Promise<T> {
+interface RequestOptions {
+  userId?: string;
+  signal?: AbortSignal;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  body?: unknown;
+}
+
+// All requests share identity headers and error handling. Callers decode JSON
+// only when a response body is expected (DELETE returns an empty 204).
+async function request(path: string, options: RequestOptions = {}): Promise<Response> {
+  const { userId, signal, method = 'GET', body } = options;
   const response = await fetch(`${baseUrl}${path}`, {
-    headers: { 'X-Demo-User-Id': userId }, signal,
+    method, signal,
+    headers: {
+      ...(userId ? { 'X-Demo-User-Id': userId } : {}),
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) {
     if (response.status === 401) {
       throw new Error('Demo user unavailable. Run the backend seed command, then reload.');
     }
-    throw new Error(`Could not load data (HTTP ${response.status}).`);
+    // A proxy/server failure may return HTML or no body instead of JSON.
+    const data = await response.json().catch(() => null) as {
+      detail?: string | { msg: string }[];
+    } | null;
+    const detail = typeof data?.detail === 'string' ? data.detail
+      : Array.isArray(data?.detail) ? data.detail.map(item => item.msg).join('; ')
+      : `Request failed (HTTP ${response.status}).`;
+    throw new Error(detail);
   }
-  return response.json() as Promise<T>;
+  return response;
 }
 
-export const listUsers = (userId: string, signal: AbortSignal) => get<PublicUser[]>('/users', userId, signal);
-export const getMe = (userId: string, signal: AbortSignal) => get<User>('/users/me', userId, signal);
+async function requestJson<T>(path: string, options: RequestOptions): Promise<T> {
+  return (await request(path, options)).json() as Promise<T>;
+}
+
+export const listUsers = (userId: string, signal: AbortSignal) =>
+  requestJson<PublicUser[]>('/users', { userId, signal });
+
+export const getMe = (userId: string, signal: AbortSignal) =>
+  requestJson<User>('/users/me', { userId, signal });
 
 export async function checkHealth(): Promise<string> {
-  const response = await fetch(`${baseUrl}/health`);
-  if (!response.ok) throw new Error('Health check failed');
-  const data = await response.json() as { status: string };
+  const data = await requestJson<{ status: string }>('/health', {});
   return data.status;
 }
 
@@ -58,32 +85,48 @@ export interface SocialWindow extends SocialWindowInput {
   id: string;
   user_id: string;
 }
+const windowsPath = '/users/me/social-windows';
+const windowPath = (id: string) => `${windowsPath}/${encodeURIComponent(id)}`;
+
 export const listMyWindows = (userId: string, signal: AbortSignal) =>
-  get<SocialWindow[]>('/users/me/social-windows', userId, signal);
+  requestJson<SocialWindow[]>(windowsPath, { userId, signal });
 
-async function writeWindow(userId: string, method: 'POST' | 'PUT' | 'DELETE', path: string, signal: AbortSignal, input?: SocialWindowInput): Promise<Response> {
-  const response = await fetch(`${baseUrl}${path}`, {
-    method,
-    headers: { 'X-Demo-User-Id': userId, ...(input ? { 'Content-Type': 'application/json' } : {}) },
-    ...(input ? { body: JSON.stringify(input) } : {}), signal,
-  });
-  if (!response.ok) {
-    const data = await response.json() as { detail?: string | { msg: string }[] };
-    const detail = typeof data.detail === 'string' ? data.detail
-      : Array.isArray(data.detail) ? data.detail.map(item => item.msg).join('; ') : 'Could not change window';
-    throw new Error(detail);
-  }
-  return response;
-}
+export const createMyWindow = (userId: string, input: SocialWindowInput, signal: AbortSignal) =>
+  requestJson<SocialWindow>(windowsPath, { userId, signal, method: 'POST', body: input });
 
-export async function createMyWindow(userId: string, input: SocialWindowInput, signal: AbortSignal): Promise<SocialWindow> {
-  return (await writeWindow(userId, 'POST', '/users/me/social-windows', signal, input)).json();
-}
-
-export async function updateMyWindow(userId: string, windowId: string, input: SocialWindowInput, signal: AbortSignal): Promise<SocialWindow> {
-  return (await writeWindow(userId, 'PUT', `/users/me/social-windows/${encodeURIComponent(windowId)}`, signal, input)).json();
-}
+export const updateMyWindow = (userId: string, windowId: string, input: SocialWindowInput, signal: AbortSignal) =>
+  requestJson<SocialWindow>(windowPath(windowId), { userId, signal, method: 'PUT', body: input });
 
 export async function deleteMyWindow(userId: string, windowId: string, signal: AbortSignal): Promise<void> {
-  await writeWindow(userId, 'DELETE', `/users/me/social-windows/${encodeURIComponent(windowId)}`, signal);
+  await request(windowPath(windowId), { userId, signal, method: 'DELETE' });
 }
+
+export interface FriendRequest {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'removed';
+  created_at: string;
+  responded_at: string | null;
+}
+
+const friendshipsPath = '/friend-requests';
+
+export const listFriendRequests = (userId: string, signal: AbortSignal) =>
+  requestJson<FriendRequest[]>(friendshipsPath, { userId, signal });
+
+export const sendFriendRequest = (userId: string, recipientId: string, signal: AbortSignal) =>
+  requestJson<FriendRequest>(friendshipsPath, {
+    userId, signal, method: 'POST', body: { recipient_id: recipientId },
+  });
+
+export const respondToFriendRequest = (
+  userId: string, requestId: string, decision: 'accept' | 'decline', signal: AbortSignal,
+) => requestJson<FriendRequest>(`${friendshipsPath}/${encodeURIComponent(requestId)}/respond`, {
+  userId, signal, method: 'POST', body: { decision },
+});
+
+export const removeFriendship = (userId: string, requestId: string, signal: AbortSignal) =>
+  requestJson<FriendRequest>(`${friendshipsPath}/${encodeURIComponent(requestId)}/remove`, {
+    userId, signal, method: 'POST',
+  });
