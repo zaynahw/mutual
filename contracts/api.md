@@ -1,6 +1,6 @@
 # Mutual API contract — bounded negotiation MVP
 
-Only `GET /health` is implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
+`GET /health`, `GET /users`, and `GET /users/me` are implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
 
 ## Agreed scope
 
@@ -36,8 +36,8 @@ Calendar read-sharing permission does not determine matching permission: backend
 | Method/path | Request schema | Success response | Rules |
 |---|---|---|---|
 | GET /health | none | 200 `{"status":"ok"}` | Implemented |
-| GET /users | none | 200 PublicUser[] | Demo directory |
-| GET /users/me | none | 200 User | Owner only |
+| GET /users | none | 200 PublicUser[] | Implemented; demo directory; valid demo identity required |
+| GET /users/me | none | 200 User | Implemented; selected demo owner only |
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
 | GET /users/{id}/schedule?start=...&end=... | aware query timestamps | 200 ScheduleResponse | Filter windows and calendar independently; validate range |
 | POST /friend-requests | FriendRequestCreate | 201 FriendRequest | Sender from caller; known distinct recipient |
@@ -79,4 +79,4 @@ Zaynah and Daniella are accepted friends. Mariann has a pending request to Zayna
 
 ## Regenerate schemas
 
-Run `.venv/bin/python -m backend.scripts.export_schemas` from the repository root. Commit models, generated schemas, fixtures, and contract changes together after review. No business routes or SQLite persistence are implemented in this change.
+Run `.venv/bin/python -m backend.scripts.export_schemas` from the repository root. Commit models, generated schemas, fixtures, and contract changes together after review. User read routes are implemented against SQLite. Other business routes remain planned. Seed the database before running user routes.

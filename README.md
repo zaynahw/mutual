@@ -38,7 +38,7 @@ npm run build
 
 frontend/ contains React, TypeScript, Vite, and Tailwind. backend/ contains health, Pydantic models, interval intersection, and adapter protocols/mocks. calendar/ and agent/ reserve teammate lanes. contracts/ defines planned endpoints and demo fixtures; tests/ checks the foundation.
 
-Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, and calendar writes are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
+GET /health, GET /users, and GET /users/me are implemented. Other business routes, scheduling UI, production authentication, OAuth, local model, and calendar writes are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
 
 ## Initial SQLite setup
 
@@ -94,7 +94,7 @@ User saving inserts or updates by ID; window creation inserts only and rejects
 an existing ID or nonexistent owner. Reads rebuild and validate Pydantic records.
 These helpers return private owner data and do not enforce viewer permissions;
 future services must filter and project results before returning them to clients.
-No business API routes are connected to these helpers yet.
+The read-only user API routes use these helpers; window API routes are not connected yet.
 
 ## Seed demo data
 
@@ -116,3 +116,24 @@ transaction. If an insertion fails, all new records from that run roll back.
 Set `MUTUAL_DATABASE_PATH` in the shell to target a different database file.
 Friend requests, busy intervals, requests, and proposals remain JSON examples;
 this command does not persist them, create accounts, or call Google Calendar.
+
+## Demo user integration panel
+
+Seed first with `.venv/bin/python -m backend.seed`, start the backend and frontend
+using the commands above, then open http://localhost:5173. Select a demo user to
+load the public directory and that owner's full settings from SQLite. The panel
+is read-only; it is a temporary integration view for the frontend lane. Switching
+users cancels pending requests and hides the previous profile. Reload data retries
+failed requests. The existing health button remains available.
+
+Both user routes require `X-Demo-User-Id` with a seeded ID, such as
+`demo-zaynah`. Missing or unknown IDs return 401. GET /users returns PublicUser
+records; GET /users/me returns the selected owner's private User record. The
+switcher allows acting as any demo user and is not real authentication. The local
+CORS configuration permits the demo header from http://localhost:5173.
+
+Example request (or use Try it out in http://localhost:8000/docs):
+
+```sh
+curl http://localhost:8000/users/me -H "X-Demo-User-Id: demo-zaynah"
+```
