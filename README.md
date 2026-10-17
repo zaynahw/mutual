@@ -42,7 +42,7 @@ GET /health, GET /users, GET /users/me, GET/POST /users/me/social-windows, and P
 
 ## Initial SQLite setup
 
-Create missing `users`, `social_windows`, and `friend_requests` tables:
+Create missing `users`, `social_windows`, `friend_requests`, and `hangout_requests` tables:
 
 ```sh
 .venv/bin/python -m backend.database
@@ -309,3 +309,49 @@ provides MockCalendarAdapter using simulated fixture busy data, without storing
 it in SQLite. Google integration can override that dependency without changing
 the response contract. Calendar failures return generic 502 errors. No frontend
 page/layout changes were made; the frontend lane can consume this endpoint.
+
+## Hangout request storage foundation
+
+`hangout_requests` stores ID, requester/invitee IDs, and the complete validated
+HangoutRequest JSON. Foreign keys require both users; a check rejects identical
+participants. Participant indexes support future user-specific queries. Multiple
+requests between the same pair are allowed, while record IDs remain unique.
+Run `.venv/bin/python -m backend.database` to add this empty table to an existing
+database. Existing records are preserved. Request storage functions are in `backend/hangouts.py`; create/list/get routes are implemented;
+candidate generation is not implemented yet, and the seed does not insert
+hangout examples. Pydantic validates the JSON; callers must keep its IDs aligned
+with the SQL columns and enforce permissions before exposing records.
+
+`create_hangout_request` inserts a complete validated record without overwriting.
+`get_hangout_request` returns one validated record or None.
+`list_hangout_requests` returns records involving the supplied user in either role,
+ordered by ID (not creation time). These helpers are internal: future routes must
+derive caller identity and verify participant access. Reads revalidate JSON and
+integrity errors propagate. They do not call agents or create calendar events.
+
+## Hangout request API
+
+POST /hangout-requests accepts HangoutRequestCreate (see the frontend_examples
+create_request fixture), generates an ID, and derives requester_id from
+X-Demo-User-Id. It stores choices without checking for a match or invoking agents.
+GET /hangout-requests lists the caller's incoming/outgoing requests; GET
+/hangout-requests/{id} loads one for participants only. Outsiders and missing
+records return the same 404. Self-requests or invalid choices return 422; unknown
+invitees return 404. Seed/initialize the database first, then try the routes in
+http://localhost:8000/docs. No frontend changes, candidates, proposals, approvals,
+or calendar event writes are included yet. Friendship is not required to record
+an intention; matching will enforce both users' window audience permissions.
+
+## Backend reuse and test setup
+
+`ParticipantRequest` in `backend/dependencies.py` loads a hangout request and
+verifies caller participation, returning the same 404 for missing/non-owned
+records. Retrieval uses it now; candidate and negotiation routes can reuse it.
+Friendship response/removal routes share a local `friendship_errors()` context
+manager to map known failures to 403/404/409 without installing app-wide handlers.
+
+`tests/conftest.py` shares function-scoped SQLite fixtures: `database_path`
+selects a nonexistent temporary file, `initialized_database` creates empty tables,
+and `seeded_database` adds demo users/windows. `client` and `request_record` build
+on seeded data. Specialized schedule adapter fixtures remain local. Test setup
+is explicit, and every test keeps its own database rather than sharing state.

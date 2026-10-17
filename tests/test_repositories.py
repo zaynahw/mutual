@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.database import connect, initialize_database
+from backend.database import connect
 from backend.models import SocialWindow, User
 from backend.repositories import (
     create_social_window, get_user, list_social_windows, list_users, save_user,
@@ -14,9 +14,7 @@ from backend.repositories import (
 
 
 @pytest.fixture
-def records(tmp_path, monkeypatch):
-    monkeypatch.setenv("MUTUAL_DATABASE_PATH", str(tmp_path / "repositories.db"))
-    initialize_database()
+def records(initialized_database):
     fixture = Path(__file__).resolve().parents[1] / "contracts/examples.json"
     data = json.loads(fixture.read_text())
     return (

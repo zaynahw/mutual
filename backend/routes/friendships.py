@@ -1,5 +1,7 @@
 """Demo-identity-bound friend request endpoints."""
 import sqlite3
+from contextlib import contextmanager
+from collections.abc import Iterator
 
 from fastapi import APIRouter, HTTPException
 
@@ -11,6 +13,19 @@ from backend.models import FriendRequest, FriendRequestCreate, FriendRequestResp
 from backend.repositories import get_user
 
 router = APIRouter(prefix="/friend-requests", tags=["friend requests"])
+
+
+@contextmanager
+def friendship_errors() -> Iterator[None]:
+    """Translate known friendship failures locally, not app-wide exceptions."""
+    try:
+        yield
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.post("", response_model=FriendRequest, status_code=201)
@@ -39,23 +54,11 @@ def get_my_requests(current_user: CurrentUser) -> list[FriendRequest]:
 def respond(
     request_id: str, body: FriendRequestRespond, current_user: CurrentUser,
 ) -> FriendRequest:
-    try:
+    with friendship_errors():
         return respond_to_friend_request(request_id, current_user.id, body.decision)
-    except PermissionError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
 
 
 @router.post("/{request_id}/remove", response_model=FriendRequest)
 def remove(request_id: str, current_user: CurrentUser) -> FriendRequest:
-    try:
+    with friendship_errors():
         return remove_friendship(request_id, current_user.id)
-    except PermissionError as error:
-        raise HTTPException(status_code=403, detail=str(error)) from error
-    except LookupError as error:
-        raise HTTPException(status_code=404, detail=str(error)) from error
-    except ValueError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error

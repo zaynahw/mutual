@@ -5,8 +5,9 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 
-from backend.models import BusyInterval, User
+from backend.models import BusyInterval, HangoutRequest, User
 from backend.repositories import get_user
+from backend.hangouts import get_hangout_request
 from backend.services.calendar_adapter import CalendarAdapter, MockCalendarAdapter
 
 
@@ -32,3 +33,14 @@ def get_calendar_adapter() -> CalendarAdapter:
     fixture = Path(__file__).resolve().parents[1] / 'contracts' / 'examples.json'
     data = json.loads(fixture.read_text())
     return MockCalendarAdapter([BusyInterval.model_validate(value) for value in data['busy_intervals']])
+
+
+def get_participant_request(request_id: str, current_user: CurrentUser) -> HangoutRequest:
+    """Shared access check for request retrieval and future matching endpoints."""
+    request = get_hangout_request(request_id)
+    if request is None or current_user.id not in (request.requester_id, request.invitee_id):
+        raise HTTPException(status_code=404, detail="Hangout request not found")
+    return request
+
+
+ParticipantRequest = Annotated[HangoutRequest, Depends(get_participant_request)]

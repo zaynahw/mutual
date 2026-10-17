@@ -88,6 +88,22 @@ def initialize_database() -> None:
             CREATE INDEX IF NOT EXISTS social_windows_user_id
             ON social_windows(user_id);
 
+            CREATE TABLE IF NOT EXISTS hangout_requests (
+                id TEXT PRIMARY KEY NOT NULL,
+                requester_id TEXT NOT NULL,
+                invitee_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                FOREIGN KEY (requester_id) REFERENCES users(id),
+                FOREIGN KEY (invitee_id) REFERENCES users(id),
+                CHECK (requester_id != invitee_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS hangout_requests_requester
+            ON hangout_requests(requester_id);
+
+            CREATE INDEX IF NOT EXISTS hangout_requests_invitee
+            ON hangout_requests(invitee_id);
+
         """)
 
         # SQLite cannot alter a CHECK constraint in place. Serialize setup and

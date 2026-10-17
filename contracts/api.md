@@ -1,6 +1,6 @@
 # Mutual API contract — bounded negotiation MVP
 
-`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The send/list/respond/remove /friend-requests routes are also implemented. GET /users/{id}/schedule is also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
+`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The send/list/respond/remove /friend-requests routes are also implemented. GET /users/{id}/schedule is also implemented. POST/GET /hangout-requests and GET /hangout-requests/{id} are also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
 
 ## Agreed scope
 
@@ -48,7 +48,9 @@ Calendar read-sharing permission does not determine matching permission: backend
 | POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends requires accepted friends; invalid selections return 422 |
 | PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends selections validated; invalid selections return 422 |
 | DELETE /users/me/social-windows/{id} | none | 204 no body | Implemented; owner only |
-| POST /hangout-requests | HangoutRequestCreate | 201 HangoutRequest | Server assigns ID/requester; known distinct invitee |
+| POST /hangout-requests | HangoutRequestCreate | 201 HangoutRequest | Implemented; server assigns ID/requester; known distinct invitee |
+| GET /hangout-requests | none | 200 HangoutRequest[] | Implemented; caller is requester/invitee; ordered by ID |
+| GET /hangout-requests/{id} | none | 200 HangoutRequest | Implemented; participants only; missing/non-owned returns identical 404 |
 | POST /hangout-requests/{id}/candidates | none | 200 CandidateOption[] | Participants only; both window policies and hard constraints enforced |
 | POST /hangout-requests/{id}/negotiate | none | 201 Proposal | Explicit user action; backend coordinates agents and validates result; 409 if no match |
 | POST /hangout-requests/{id}/proposals | ProposalCreate | 201 Proposal | Participant only; validates choices and slot; copies location from request |
@@ -156,3 +158,14 @@ after awaiting calendar results. The default dependency supplies simulated busy
 intervals from examples.json; override backend.dependencies.get_calendar_adapter
 for Google integration or tests. It uses the existing CalendarAdapter protocol.
 No real Google calls or frontend changes are included in this endpoint work.
+
+## Hangout request creation and retrieval
+
+Creation stores a person-first intention, not a match or approval. Requester ID
+and record ID are assigned by the backend; body overrides are rejected. Self
+requests return 422, unknown invitees 404, malformed options/intervals 422, and
+missing/unknown identity 401. Multiple requests between a pair are permitted.
+GET collection returns requests involving the caller in either role; a query
+user_id cannot override identity. Individual retrieval returns the same 404 for
+missing records and outsiders. Candidate generation and negotiation remain
+unimplemented; request creation grants no access to private social/calendar data.

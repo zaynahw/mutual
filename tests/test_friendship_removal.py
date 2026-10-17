@@ -9,13 +9,6 @@ from backend.friendships import (
     remove_friendship, respond_to_friend_request,
 )
 from backend.main import app
-from backend.seed import seed_demo_data
-
-
-@pytest.fixture
-def database(tmp_path, monkeypatch):
-    monkeypatch.setenv('MUTUAL_DATABASE_PATH', str(tmp_path / 'removal.db'))
-    seed_demo_data()
 
 
 def accepted():
@@ -24,7 +17,7 @@ def accepted():
 
 
 @pytest.mark.parametrize('actor', ['demo-zaynah', 'demo-daniella'])
-def test_either_participant_removes_and_readds_without_old_replay_affecting_new(database, actor):
+def test_either_participant_removes_and_readds_without_old_replay_affecting_new(seeded_database, actor):
     first = accepted()
     removed = remove_friendship(first.id, actor)
     assert removed.status == 'removed'
@@ -38,7 +31,7 @@ def test_either_participant_removes_and_readds_without_old_replay_affecting_new(
     assert newer.id != first.id
 
 
-def test_outsider_cannot_remove_and_removed_record_cannot_reopen(database):
+def test_outsider_cannot_remove_and_removed_record_cannot_reopen(seeded_database):
     request = accepted()
     with pytest.raises(PermissionError):
         remove_friendship(request.id, 'demo-kusum')
@@ -51,7 +44,7 @@ def test_outsider_cannot_remove_and_removed_record_cannot_reopen(database):
 
 
 @pytest.mark.parametrize('status', ['pending', 'declined'])
-def test_cannot_remove_non_friendship(database, status):
+def test_cannot_remove_non_friendship(seeded_database, status):
     request = create_friend_request('demo-zaynah', 'demo-daniella')
     if status == 'declined':
         respond_to_friend_request(request.id, request.recipient_id, 'decline')
@@ -60,7 +53,7 @@ def test_cannot_remove_non_friendship(database, status):
     assert list_friend_requests(request.sender_id)[0].status == status
 
 
-def test_old_schema_upgrade_preserves_records_and_index(database):
+def test_old_schema_upgrade_preserves_records_and_index(seeded_database):
     # Recreate the original schema to exercise the actual upgrade path.
     with connect() as connection:
         connection.execute('DROP TABLE friend_requests')
@@ -79,7 +72,7 @@ def test_old_schema_upgrade_preserves_records_and_index(database):
     assert len(list_friend_requests(first.sender_id)) == 1
 
 
-def test_migration_failure_rolls_back_original_table(database):
+def test_migration_failure_rolls_back_original_table(seeded_database):
     with connect() as connection:
         connection.execute('DROP TABLE friend_requests')
         connection.execute(FRIEND_REQUESTS_TABLE.replace(", 'removed'", ''))
@@ -96,7 +89,7 @@ def test_migration_failure_rolls_back_original_table(database):
     assert list_friend_requests(first.sender_id) == [first]
 
 
-def test_removal_route_and_readd_flow(database):
+def test_removal_route_and_readd_flow(seeded_database):
     first = accepted()
     with TestClient(app) as client:
         path = f'/friend-requests/{first.id}/remove'

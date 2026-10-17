@@ -11,14 +11,7 @@ from backend.repositories import get_user, list_social_windows, list_users, save
 from backend.seed import DEFAULT_FIXTURE_PATH, seed_demo_data
 
 
-@pytest.fixture
-def database(tmp_path, monkeypatch):
-    path = tmp_path / "seed.db"
-    monkeypatch.setenv("MUTUAL_DATABASE_PATH", str(path))
-    return path
-
-
-def test_seed_inserts_four_users_and_five_windows_once(database):
+def test_seed_inserts_four_users_and_five_windows_once(database_path):
     assert seed_demo_data() == (4, 5)
     assert {user.id for user in list_users()} == {
         "demo-zaynah", "demo-daniella", "demo-kusum", "demo-mariann",
@@ -28,7 +21,7 @@ def test_seed_inserts_four_users_and_five_windows_once(database):
     assert len(list_users()) == 4
 
 
-def test_reseed_preserves_user_edits(database):
+def test_reseed_preserves_user_edits(database_path):
     seed_demo_data()
     user = get_user("demo-zaynah")
     updated = User.model_validate(user.model_dump() | {"display_name": "Zaynah edited (demo)"})
@@ -37,7 +30,7 @@ def test_reseed_preserves_user_edits(database):
     assert get_user(updated.id) == updated
 
 
-def test_reseed_preserves_window_edits(database):
+def test_reseed_preserves_window_edits(database_path):
     seed_demo_data()
     window = list_social_windows("demo-zaynah")[0]
     updated = window.model_copy(update={"sharing_mode": "matching_only"})
@@ -48,17 +41,17 @@ def test_reseed_preserves_window_edits(database):
     assert updated in list_social_windows("demo-zaynah")
 
 
-def test_invalid_fixture_is_rejected_before_database_creation(database, tmp_path):
+def test_invalid_fixture_is_rejected_before_database_creation(database_path, tmp_path):
     data = json.loads(DEFAULT_FIXTURE_PATH.read_text())
     data["social_windows"][0]["allowed_activities"] = ["unsupported"]
     fixture = tmp_path / "invalid.json"
     fixture.write_text(json.dumps(data))
     with pytest.raises(ValidationError):
         seed_demo_data(fixture)
-    assert not database.exists()
+    assert not database_path.exists()
 
 
-def test_unknown_owner_rolls_back_new_records_and_preserves_existing(database, tmp_path):
+def test_unknown_owner_rolls_back_new_records_and_preserves_existing(database_path, tmp_path):
     initialize_database()
     data = json.loads(DEFAULT_FIXTURE_PATH.read_text())
     existing = User.model_validate(data["users"][0])
