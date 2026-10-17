@@ -38,7 +38,7 @@ npm run build
 
 frontend/ contains React, TypeScript, Vite, and Tailwind. backend/ contains health, Pydantic models, interval intersection, and adapter protocols/mocks. calendar/ and agent/ reserve teammate lanes. contracts/ defines planned endpoints and demo fixtures; tests/ checks the foundation.
 
-Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, calendar writes, and application save/read functions are future lane work. Initial SQLite tables and connection handling are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
+Only GET /health is implemented. Business routes, scheduling UI, production authentication, OAuth, local model, calendar writes, and demo seeding are future lane work. Initial SQLite tables, connection handling, and user/window persistence helpers are available. Real adapter stubs raise NotImplementedError; the mock calendar stores demo event IDs in memory.
 
 ## Initial SQLite setup
 
@@ -85,3 +85,13 @@ Regenerate JSON Schemas after changing models:
 
 The existing agent adapter is a foundation mock; its final private-context and
 negotiation input/output contract must be coordinated with the agent teammate.
+
+## Internal persistence helpers
+
+`backend/repositories.py` provides `save_user`, `get_user`, `list_users`,
+`create_social_window`, and `list_social_windows`. Initialize the database first.
+User saving inserts or updates by ID; window creation inserts only and rejects
+an existing ID or nonexistent owner. Reads rebuild and validate Pydantic records.
+These helpers return private owner data and do not enforce viewer permissions;
+future services must filter and project results before returning them to clients.
+No API routes or demo seeding are connected to these helpers yet.
