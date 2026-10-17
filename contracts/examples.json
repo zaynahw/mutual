@@ -1,77 +1,330 @@
 {
   "users": [
     {
-      "id": "demo-alex",
-      "display_name": "Alex (demo)",
+      "id": "demo-zaynah",
+      "display_name": "Zaynah (demo)",
       "is_demo": true,
+      "community": "georgia_tech",
       "timezone": "America/New_York",
-      "availability_visible_to": [
-        "demo-sam"
-      ],
-      "activity_preferences": [
-        "coffee"
-      ],
-      "boundaries": [
-        "Public places only"
-      ]
+      "calendar_sharing": {
+        "audience": "friends",
+        "selected_friend_ids": []
+      },
+      "preferences": {
+        "preferred_activities": [
+          "coffee",
+          "walk",
+          "concert"
+        ],
+        "soft_preference_note": "Prefer a relaxed catch-up"
+      },
+      "hard_constraints": {
+        "allowed_activities": [
+          "coffee",
+          "walk",
+          "concert"
+        ],
+        "max_duration_minutes": 60
+      }
     },
     {
-      "id": "demo-sam",
-      "display_name": "Sam (demo)",
+      "id": "demo-daniella",
+      "display_name": "Daniella (demo)",
       "is_demo": true,
+      "community": "georgia_tech",
       "timezone": "America/New_York",
-      "availability_visible_to": [
-        "demo-alex"
-      ],
-      "activity_preferences": [
-        "coffee"
-      ],
-      "boundaries": [
-        "No late evenings"
-      ]
+      "calendar_sharing": {
+        "audience": "private",
+        "selected_friend_ids": []
+      },
+      "preferences": {
+        "preferred_activities": [
+          "coffee",
+          "study"
+        ],
+        "soft_preference_note": "Prefer a relaxed catch-up"
+      },
+      "hard_constraints": {
+        "allowed_activities": [
+          "coffee",
+          "study"
+        ],
+        "max_duration_minutes": 120
+      }
+    },
+    {
+      "id": "demo-kusum",
+      "display_name": "Kusum (demo)",
+      "is_demo": true,
+      "community": "georgia_tech",
+      "timezone": "America/New_York",
+      "calendar_sharing": {
+        "audience": "private",
+        "selected_friend_ids": []
+      },
+      "preferences": {
+        "preferred_activities": [
+          "concert",
+          "meal"
+        ],
+        "soft_preference_note": "Prefer a relaxed catch-up"
+      },
+      "hard_constraints": {
+        "allowed_activities": [
+          "concert",
+          "meal"
+        ],
+        "max_duration_minutes": 120
+      }
+    },
+    {
+      "id": "demo-mariann",
+      "display_name": "Mariann (demo)",
+      "is_demo": true,
+      "community": "georgia_tech",
+      "timezone": "America/New_York",
+      "calendar_sharing": {
+        "audience": "private",
+        "selected_friend_ids": []
+      },
+      "preferences": {
+        "preferred_activities": [
+          "walk",
+          "coffee"
+        ],
+        "soft_preference_note": "Prefer a relaxed catch-up"
+      },
+      "hard_constraints": {
+        "allowed_activities": [
+          "walk",
+          "coffee"
+        ],
+        "max_duration_minutes": 120
+      }
+    }
+  ],
+  "friend_requests": [
+    {
+      "id": "friend-1",
+      "sender_id": "demo-zaynah",
+      "recipient_id": "demo-daniella",
+      "status": "accepted",
+      "created_at": "2026-10-17T13:00:00-04:00",
+      "responded_at": "2026-10-17T13:05:00-04:00"
+    },
+    {
+      "id": "friend-2",
+      "sender_id": "demo-mariann",
+      "recipient_id": "demo-zaynah",
+      "status": "pending",
+      "created_at": "2026-10-17T14:00:00-04:00",
+      "responded_at": null
     }
   ],
   "social_windows": [
     {
-      "user_id": "demo-alex",
+      "id": "window-1",
+      "user_id": "demo-zaynah",
       "start": "2026-10-18T14:00:00-04:00",
-      "end": "2026-10-18T18:00:00-04:00"
+      "end": "2026-10-18T18:00:00-04:00",
+      "allowed_activities": [
+        "coffee",
+        "walk"
+      ],
+      "visibility": {
+        "audience": "friends",
+        "selected_friend_ids": []
+      },
+      "sharing_mode": "visible"
     },
     {
-      "user_id": "demo-sam",
+      "id": "window-2",
+      "user_id": "demo-daniella",
       "start": "2026-10-18T15:00:00-04:00",
-      "end": "2026-10-18T19:00:00-04:00"
+      "end": "2026-10-18T19:00:00-04:00",
+      "allowed_activities": [
+        "coffee"
+      ],
+      "visibility": {
+        "audience": "friends",
+        "selected_friend_ids": []
+      },
+      "sharing_mode": "visible"
+    },
+    {
+      "id": "window-3",
+      "user_id": "demo-zaynah",
+      "start": "2026-10-18T19:00:00-04:00",
+      "end": "2026-10-18T21:00:00-04:00",
+      "allowed_activities": [
+        "concert"
+      ],
+      "visibility": {
+        "audience": "community",
+        "selected_friend_ids": []
+      },
+      "sharing_mode": "visible"
+    },
+    {
+      "id": "window-4",
+      "user_id": "demo-zaynah",
+      "start": "2026-10-18T12:00:00-04:00",
+      "end": "2026-10-18T13:00:00-04:00",
+      "allowed_activities": [
+        "coffee"
+      ],
+      "visibility": {
+        "audience": "selected_friends",
+        "selected_friend_ids": [
+          "demo-daniella"
+        ]
+      },
+      "sharing_mode": "visible"
+    },
+    {
+      "id": "window-5",
+      "user_id": "demo-daniella",
+      "start": "2026-10-18T12:00:00-04:00",
+      "end": "2026-10-18T13:00:00-04:00",
+      "allowed_activities": [
+        "study"
+      ],
+      "visibility": {
+        "audience": "friends",
+        "selected_friend_ids": []
+      },
+      "sharing_mode": "matching_only"
     }
   ],
   "busy_intervals": [
     {
-      "user_id": "demo-alex",
+      "user_id": "demo-zaynah",
       "start": "2026-10-18T16:00:00-04:00",
       "end": "2026-10-18T17:00:00-04:00"
     },
     {
-      "user_id": "demo-sam",
+      "user_id": "demo-daniella",
       "start": "2026-10-18T17:30:00-04:00",
       "end": "2026-10-18T18:00:00-04:00"
     }
   ],
   "request": {
     "id": "request-demo-1",
-    "requester_id": "demo-alex",
-    "invitee_id": "demo-sam",
-    "activity": "coffee",
-    "duration_minutes": 60,
+    "requester_id": "demo-zaynah",
+    "invitee_id": "demo-daniella",
     "start": "2026-10-18T14:00:00-04:00",
-    "end": "2026-10-18T19:00:00-04:00"
+    "end": "2026-10-18T19:00:00-04:00",
+    "allowed_activities": [
+      "coffee",
+      "walk"
+    ],
+    "allowed_durations": [
+      30,
+      60
+    ],
+    "location": "Tech Square"
   },
+  "candidate_options": [
+    {
+      "slot": {
+        "start": "2026-10-18T15:00:00-04:00",
+        "end": "2026-10-18T16:00:00-04:00"
+      },
+      "eligible_activities": [
+        "coffee"
+      ],
+      "eligible_durations": [
+        30,
+        60
+      ]
+    }
+  ],
   "proposal": {
     "id": "proposal-demo-1",
     "request_id": "request-demo-1",
+    "activity": "coffee",
     "slot": {
       "start": "2026-10-18T15:00:00-04:00",
-      "end": "2026-10-18T16:00:00-04:00"
+      "end": "2026-10-18T15:30:00-04:00"
     },
+    "location": "Tech Square",
     "status": "pending"
   },
-  "approvals": []
+  "approvals": [],
+  "frontend_examples": {
+    "create_request": {
+      "invitee_id": "demo-daniella",
+      "start": "2026-10-18T14:00:00-04:00",
+      "end": "2026-10-18T19:00:00-04:00",
+      "allowed_activities": [
+        "coffee",
+        "walk"
+      ],
+      "allowed_durations": [
+        30,
+        60
+      ],
+      "location": "Tech Square"
+    },
+    "schedule_for_daniella": {
+      "user": {
+        "id": "demo-zaynah",
+        "display_name": "Zaynah (demo)",
+        "is_demo": true,
+        "community": "georgia_tech"
+      },
+      "social_windows": [
+        {
+          "id": "window-1",
+          "start": "2026-10-18T14:00:00-04:00",
+          "end": "2026-10-18T18:00:00-04:00",
+          "allowed_activities": [
+            "coffee",
+            "walk"
+          ]
+        },
+        {
+          "id": "window-3",
+          "start": "2026-10-18T19:00:00-04:00",
+          "end": "2026-10-18T21:00:00-04:00",
+          "allowed_activities": [
+            "concert"
+          ]
+        },
+        {
+          "id": "window-4",
+          "start": "2026-10-18T12:00:00-04:00",
+          "end": "2026-10-18T13:00:00-04:00",
+          "allowed_activities": [
+            "coffee"
+          ]
+        }
+      ],
+      "calendar_busy": [
+        {
+          "start": "2026-10-18T16:00:00-04:00",
+          "end": "2026-10-18T17:00:00-04:00"
+        }
+      ]
+    },
+    "schedule_for_kusum": {
+      "user": {
+        "id": "demo-zaynah",
+        "display_name": "Zaynah (demo)",
+        "is_demo": true,
+        "community": "georgia_tech"
+      },
+      "social_windows": [
+        {
+          "id": "window-3",
+          "start": "2026-10-18T19:00:00-04:00",
+          "end": "2026-10-18T21:00:00-04:00",
+          "allowed_activities": [
+            "concert"
+          ]
+        }
+      ],
+      "calendar_busy": null
+    }
+  }
 }
