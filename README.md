@@ -43,3 +43,25 @@ Only GET /health is implemented. Business routes, scheduling UI, production auth
 Scheduling returns maximal common free intervals meeting the duration. Future proposal logic selects an exact duration-sized slot, checks permissions and boundaries, validates model output, and requires both approvals before calendar creation.
 
 Read AGENTS.md and contracts/api.md before changing shared interfaces.
+
+## Shared model contract
+
+The model contract now supports four demo users, interactive friend requests,
+per-window community/friends/selected-friends visibility, independently controlled
+calendar free/busy sharing (private by default), and bounded activity/duration
+negotiation. These are validated schemas and examples, not implemented routes.
+
+`backend/models.py` separates client input, private owner records, and public
+responses. `contracts/api.md` documents planned routes and backend permission
+rules; `contracts/examples.json` provides frontend payloads and viewer-specific
+schedule examples. Old activity/duration request fields and blanket user
+visibility fields have been replaced; consumers should follow the updated schemas.
+
+Regenerate JSON Schemas after changing models:
+
+```sh
+.venv/bin/python -m backend.scripts.export_schemas
+```
+
+The existing agent adapter is a foundation mock; its final private-context and
+negotiation input/output contract must be coordinated with the agent teammate.

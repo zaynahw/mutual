@@ -1,13 +1,336 @@
 {
-  "User": {
+  "Interval": {
     "additionalProperties": false,
     "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start",
+      "end"
+    ],
+    "title": "Interval",
+    "type": "object"
+  },
+  "VisibilityPolicy": {
+    "additionalProperties": false,
+    "properties": {
+      "audience": {
+        "default": "private",
+        "enum": [
+          "private",
+          "community",
+          "friends",
+          "selected_friends"
+        ],
+        "title": "Audience",
+        "type": "string"
+      },
+      "selected_friend_ids": {
+        "items": {
+          "pattern": "^demo-[a-z0-9-]+$",
+          "type": "string"
+        },
+        "title": "Selected Friend Ids",
+        "type": "array"
+      }
+    },
+    "title": "VisibilityPolicy",
+    "type": "object"
+  },
+  "Preferences": {
+    "additionalProperties": false,
+    "properties": {
+      "preferred_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "title": "Preferred Activities",
+        "type": "array"
+      },
+      "soft_preference_note": {
+        "default": "",
+        "maxLength": 1000,
+        "title": "Soft Preference Note",
+        "type": "string"
+      }
+    },
+    "title": "Preferences",
+    "type": "object"
+  },
+  "HardConstraints": {
+    "additionalProperties": false,
+    "properties": {
+      "allowed_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Allowed Activities",
+        "type": "array"
+      },
+      "max_duration_minutes": {
+        "default": 120,
+        "maximum": 120,
+        "minimum": 30,
+        "multipleOf": 30,
+        "title": "Max Duration Minutes",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "allowed_activities"
+    ],
+    "title": "HardConstraints",
+    "type": "object"
+  },
+  "UserSettings": {
+    "$defs": {
+      "HardConstraints": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Activities",
+            "type": "array"
+          },
+          "max_duration_minutes": {
+            "default": 120,
+            "maximum": 120,
+            "minimum": 30,
+            "multipleOf": 30,
+            "title": "Max Duration Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowed_activities"
+        ],
+        "title": "HardConstraints",
+        "type": "object"
+      },
+      "Preferences": {
+        "additionalProperties": false,
+        "properties": {
+          "preferred_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "title": "Preferred Activities",
+            "type": "array"
+          },
+          "soft_preference_note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Soft Preference Note",
+            "type": "string"
+          }
+        },
+        "title": "Preferences",
+        "type": "object"
+      },
+      "VisibilityPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "default": "private",
+            "enum": [
+              "private",
+              "community",
+              "friends",
+              "selected_friends"
+            ],
+            "title": "Audience",
+            "type": "string"
+          },
+          "selected_friend_ids": {
+            "items": {
+              "pattern": "^demo-[a-z0-9-]+$",
+              "type": "string"
+            },
+            "title": "Selected Friend Ids",
+            "type": "array"
+          }
+        },
+        "title": "VisibilityPolicy",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "timezone": {
+        "default": "America/New_York",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "calendar_sharing": {
+        "$ref": "#/$defs/VisibilityPolicy"
+      },
+      "preferences": {
+        "$ref": "#/$defs/Preferences"
+      },
+      "hard_constraints": {
+        "$ref": "#/$defs/HardConstraints"
+      }
+    },
+    "required": [
+      "hard_constraints"
+    ],
+    "title": "UserSettings",
+    "type": "object"
+  },
+  "User": {
+    "$defs": {
+      "HardConstraints": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Activities",
+            "type": "array"
+          },
+          "max_duration_minutes": {
+            "default": 120,
+            "maximum": 120,
+            "minimum": 30,
+            "multipleOf": 30,
+            "title": "Max Duration Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowed_activities"
+        ],
+        "title": "HardConstraints",
+        "type": "object"
+      },
+      "Preferences": {
+        "additionalProperties": false,
+        "properties": {
+          "preferred_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "title": "Preferred Activities",
+            "type": "array"
+          },
+          "soft_preference_note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Soft Preference Note",
+            "type": "string"
+          }
+        },
+        "title": "Preferences",
+        "type": "object"
+      },
+      "VisibilityPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "default": "private",
+            "enum": [
+              "private",
+              "community",
+              "friends",
+              "selected_friends"
+            ],
+            "title": "Audience",
+            "type": "string"
+          },
+          "selected_friend_ids": {
+            "items": {
+              "pattern": "^demo-[a-z0-9-]+$",
+              "type": "string"
+            },
+            "title": "Selected Friend Ids",
+            "type": "array"
+          }
+        },
+        "title": "VisibilityPolicy",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Private owner record; never use as another user's profile response.",
+    "properties": {
+      "timezone": {
+        "default": "America/New_York",
+        "title": "Timezone",
+        "type": "string"
+      },
+      "calendar_sharing": {
+        "$ref": "#/$defs/VisibilityPolicy"
+      },
+      "preferences": {
+        "$ref": "#/$defs/Preferences"
+      },
+      "hard_constraints": {
+        "$ref": "#/$defs/HardConstraints"
+      },
       "id": {
         "pattern": "^demo-[a-z0-9-]+$",
         "title": "Id",
         "type": "string"
       },
       "display_name": {
+        "maxLength": 100,
         "minLength": 1,
         "title": "Display Name",
         "type": "string"
@@ -18,41 +341,170 @@
         "title": "Is Demo",
         "type": "boolean"
       },
-      "timezone": {
-        "default": "UTC",
-        "title": "Timezone",
+      "community": {
+        "const": "georgia_tech",
+        "default": "georgia_tech",
+        "title": "Community",
         "type": "string"
-      },
-      "availability_visible_to": {
-        "items": {
-          "type": "string"
-        },
-        "title": "Availability Visible To",
-        "type": "array"
-      },
-      "activity_preferences": {
-        "items": {
-          "type": "string"
-        },
-        "title": "Activity Preferences",
-        "type": "array"
-      },
-      "boundaries": {
-        "items": {
-          "type": "string"
-        },
-        "title": "Boundaries",
-        "type": "array"
       }
     },
     "required": [
+      "hard_constraints",
       "id",
       "display_name"
     ],
     "title": "User",
     "type": "object"
   },
-  "SocialWindow": {
+  "PublicUser": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Id",
+        "type": "string"
+      },
+      "display_name": {
+        "title": "Display Name",
+        "type": "string"
+      },
+      "is_demo": {
+        "const": true,
+        "default": true,
+        "title": "Is Demo",
+        "type": "boolean"
+      },
+      "community": {
+        "const": "georgia_tech",
+        "default": "georgia_tech",
+        "title": "Community",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "display_name"
+    ],
+    "title": "PublicUser",
+    "type": "object"
+  },
+  "FriendRequestCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "recipient_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Recipient Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "recipient_id"
+    ],
+    "title": "FriendRequestCreate",
+    "type": "object"
+  },
+  "FriendRequestRespond": {
+    "additionalProperties": false,
+    "properties": {
+      "decision": {
+        "enum": [
+          "accept",
+          "decline"
+        ],
+        "title": "Decision",
+        "type": "string"
+      }
+    },
+    "required": [
+      "decision"
+    ],
+    "title": "FriendRequestRespond",
+    "type": "object"
+  },
+  "FriendRequest": {
+    "additionalProperties": false,
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "sender_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Sender Id",
+        "type": "string"
+      },
+      "recipient_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Recipient Id",
+        "type": "string"
+      },
+      "status": {
+        "default": "pending",
+        "enum": [
+          "pending",
+          "accepted",
+          "declined"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "created_at": {
+        "format": "date-time",
+        "title": "Created At",
+        "type": "string"
+      },
+      "responded_at": {
+        "anyOf": [
+          {
+            "format": "date-time",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Responded At"
+      }
+    },
+    "required": [
+      "id",
+      "sender_id",
+      "recipient_id",
+      "created_at"
+    ],
+    "title": "FriendRequest",
+    "type": "object"
+  },
+  "SocialWindowCreate": {
+    "$defs": {
+      "VisibilityPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "default": "private",
+            "enum": [
+              "private",
+              "community",
+              "friends",
+              "selected_friends"
+            ],
+            "title": "Audience",
+            "type": "string"
+          },
+          "selected_friend_ids": {
+            "items": {
+              "pattern": "^demo-[a-z0-9-]+$",
+              "type": "string"
+            },
+            "title": "Selected Friend Ids",
+            "type": "array"
+          }
+        },
+        "title": "VisibilityPolicy",
+        "type": "object"
+      }
+    },
     "additionalProperties": false,
     "properties": {
       "start": {
@@ -65,7 +517,116 @@
         "title": "End",
         "type": "string"
       },
+      "allowed_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Allowed Activities",
+        "type": "array"
+      },
+      "visibility": {
+        "$ref": "#/$defs/VisibilityPolicy"
+      },
+      "sharing_mode": {
+        "default": "visible",
+        "enum": [
+          "visible",
+          "matching_only"
+        ],
+        "title": "Sharing Mode",
+        "type": "string"
+      }
+    },
+    "required": [
+      "start",
+      "end",
+      "allowed_activities"
+    ],
+    "title": "SocialWindowCreate",
+    "type": "object"
+  },
+  "SocialWindow": {
+    "$defs": {
+      "VisibilityPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "default": "private",
+            "enum": [
+              "private",
+              "community",
+              "friends",
+              "selected_friends"
+            ],
+            "title": "Audience",
+            "type": "string"
+          },
+          "selected_friend_ids": {
+            "items": {
+              "pattern": "^demo-[a-z0-9-]+$",
+              "type": "string"
+            },
+            "title": "Selected Friend Ids",
+            "type": "array"
+          }
+        },
+        "title": "VisibilityPolicy",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      },
+      "allowed_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Allowed Activities",
+        "type": "array"
+      },
+      "visibility": {
+        "$ref": "#/$defs/VisibilityPolicy"
+      },
+      "sharing_mode": {
+        "default": "visible",
+        "enum": [
+          "visible",
+          "matching_only"
+        ],
+        "title": "Sharing Mode",
+        "type": "string"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
       "user_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
         "title": "User Id",
         "type": "string"
       }
@@ -73,9 +634,54 @@
     "required": [
       "start",
       "end",
+      "allowed_activities",
+      "id",
       "user_id"
     ],
     "title": "SocialWindow",
+    "type": "object"
+  },
+  "SharedSocialWindow": {
+    "additionalProperties": false,
+    "description": "Viewer projection; excludes audience lists and matching-only windows.",
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      },
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "allowed_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Allowed Activities",
+        "type": "array"
+      }
+    },
+    "required": [
+      "start",
+      "end",
+      "id",
+      "allowed_activities"
+    ],
+    "title": "SharedSocialWindow",
     "type": "object"
   },
   "BusyInterval": {
@@ -92,6 +698,7 @@
         "type": "string"
       },
       "user_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
         "title": "User Id",
         "type": "string"
       }
@@ -102,6 +709,208 @@
       "user_id"
     ],
     "title": "BusyInterval",
+    "type": "object"
+  },
+  "ScheduleResponse": {
+    "$defs": {
+      "Interval": {
+        "additionalProperties": false,
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "Interval",
+        "type": "object"
+      },
+      "PublicUser": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^demo-[a-z0-9-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_demo": {
+            "const": true,
+            "default": true,
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "community": {
+            "const": "georgia_tech",
+            "default": "georgia_tech",
+            "title": "Community",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "PublicUser",
+        "type": "object"
+      },
+      "SharedSocialWindow": {
+        "additionalProperties": false,
+        "description": "Viewer projection; excludes audience lists and matching-only windows.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "allowed_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Activities",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "id",
+          "allowed_activities"
+        ],
+        "title": "SharedSocialWindow",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "user": {
+        "$ref": "#/$defs/PublicUser"
+      },
+      "social_windows": {
+        "items": {
+          "$ref": "#/$defs/SharedSocialWindow"
+        },
+        "title": "Social Windows",
+        "type": "array"
+      },
+      "calendar_busy": {
+        "anyOf": [
+          {
+            "items": {
+              "$ref": "#/$defs/Interval"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Calendar Busy"
+      }
+    },
+    "required": [
+      "user",
+      "social_windows"
+    ],
+    "title": "ScheduleResponse",
+    "type": "object"
+  },
+  "HangoutRequestCreate": {
+    "additionalProperties": false,
+    "properties": {
+      "start": {
+        "format": "date-time",
+        "title": "Start",
+        "type": "string"
+      },
+      "end": {
+        "format": "date-time",
+        "title": "End",
+        "type": "string"
+      },
+      "invitee_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Invitee Id",
+        "type": "string"
+      },
+      "allowed_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Allowed Activities",
+        "type": "array"
+      },
+      "allowed_durations": {
+        "items": {
+          "maximum": 120,
+          "minimum": 30,
+          "multipleOf": 30,
+          "type": "integer"
+        },
+        "minItems": 1,
+        "title": "Allowed Durations",
+        "type": "array"
+      },
+      "location": {
+        "anyOf": [
+          {
+            "maxLength": 200,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Location"
+      }
+    },
+    "required": [
+      "start",
+      "end",
+      "invitee_id",
+      "allowed_activities",
+      "allowed_durations"
+    ],
+    "title": "HangoutRequestCreate",
     "type": "object"
   },
   "HangoutRequest": {
@@ -117,44 +926,75 @@
         "title": "End",
         "type": "string"
       },
+      "invitee_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Invitee Id",
+        "type": "string"
+      },
+      "allowed_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Allowed Activities",
+        "type": "array"
+      },
+      "allowed_durations": {
+        "items": {
+          "maximum": 120,
+          "minimum": 30,
+          "multipleOf": 30,
+          "type": "integer"
+        },
+        "minItems": 1,
+        "title": "Allowed Durations",
+        "type": "array"
+      },
+      "location": {
+        "anyOf": [
+          {
+            "maxLength": 200,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Location"
+      },
       "id": {
         "title": "Id",
         "type": "string"
       },
       "requester_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
         "title": "Requester Id",
         "type": "string"
-      },
-      "invitee_id": {
-        "title": "Invitee Id",
-        "type": "string"
-      },
-      "activity": {
-        "minLength": 1,
-        "title": "Activity",
-        "type": "string"
-      },
-      "duration_minutes": {
-        "exclusiveMinimum": 0,
-        "maximum": 1440,
-        "title": "Duration Minutes",
-        "type": "integer"
       }
     },
     "required": [
       "start",
       "end",
-      "id",
-      "requester_id",
       "invitee_id",
-      "activity",
-      "duration_minutes"
+      "allowed_activities",
+      "allowed_durations",
+      "id",
+      "requester_id"
     ],
     "title": "HangoutRequest",
     "type": "object"
   },
   "CandidateSlot": {
     "additionalProperties": false,
+    "description": "Pure interval returned by deterministic intersection.",
     "properties": {
       "start": {
         "format": "date-time",
@@ -174,10 +1014,11 @@
     "title": "CandidateSlot",
     "type": "object"
   },
-  "Proposal": {
+  "CandidateOption": {
     "$defs": {
       "CandidateSlot": {
         "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
         "properties": {
           "start": {
             "format": "date-time",
@@ -200,6 +1041,134 @@
     },
     "additionalProperties": false,
     "properties": {
+      "slot": {
+        "$ref": "#/$defs/CandidateSlot"
+      },
+      "eligible_activities": {
+        "items": {
+          "enum": [
+            "coffee",
+            "meal",
+            "walk",
+            "study",
+            "concert"
+          ],
+          "type": "string"
+        },
+        "minItems": 1,
+        "title": "Eligible Activities",
+        "type": "array"
+      },
+      "eligible_durations": {
+        "items": {
+          "maximum": 120,
+          "minimum": 30,
+          "multipleOf": 30,
+          "type": "integer"
+        },
+        "minItems": 1,
+        "title": "Eligible Durations",
+        "type": "array"
+      }
+    },
+    "required": [
+      "slot",
+      "eligible_activities",
+      "eligible_durations"
+    ],
+    "title": "CandidateOption",
+    "type": "object"
+  },
+  "ProposalCreate": {
+    "$defs": {
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "activity": {
+        "enum": [
+          "coffee",
+          "meal",
+          "walk",
+          "study",
+          "concert"
+        ],
+        "title": "Activity",
+        "type": "string"
+      },
+      "slot": {
+        "$ref": "#/$defs/CandidateSlot"
+      }
+    },
+    "required": [
+      "activity",
+      "slot"
+    ],
+    "title": "ProposalCreate",
+    "type": "object"
+  },
+  "Proposal": {
+    "$defs": {
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "activity": {
+        "enum": [
+          "coffee",
+          "meal",
+          "walk",
+          "study",
+          "concert"
+        ],
+        "title": "Activity",
+        "type": "string"
+      },
+      "slot": {
+        "$ref": "#/$defs/CandidateSlot"
+      },
       "id": {
         "title": "Id",
         "type": "string"
@@ -208,8 +1177,18 @@
         "title": "Request Id",
         "type": "string"
       },
-      "slot": {
-        "$ref": "#/$defs/CandidateSlot"
+      "location": {
+        "anyOf": [
+          {
+            "maxLength": 200,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Location"
       },
       "status": {
         "default": "pending",
@@ -224,30 +1203,50 @@
       }
     },
     "required": [
+      "activity",
+      "slot",
       "id",
-      "request_id",
-      "slot"
+      "request_id"
     ],
     "title": "Proposal",
     "type": "object"
   },
-  "Approval": {
+  "ApprovalCreate": {
     "additionalProperties": false,
     "properties": {
-      "proposal_id": {
-        "title": "Proposal Id",
-        "type": "string"
-      },
-      "user_id": {
-        "title": "User Id",
-        "type": "string"
-      },
       "decision": {
         "enum": [
           "approve",
           "decline"
         ],
         "title": "Decision",
+        "type": "string"
+      }
+    },
+    "required": [
+      "decision"
+    ],
+    "title": "ApprovalCreate",
+    "type": "object"
+  },
+  "Approval": {
+    "additionalProperties": false,
+    "properties": {
+      "decision": {
+        "enum": [
+          "approve",
+          "decline"
+        ],
+        "title": "Decision",
+        "type": "string"
+      },
+      "proposal_id": {
+        "title": "Proposal Id",
+        "type": "string"
+      },
+      "user_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "User Id",
         "type": "string"
       },
       "decided_at": {
@@ -257,12 +1256,170 @@
       }
     },
     "required": [
+      "decision",
       "proposal_id",
       "user_id",
-      "decision",
       "decided_at"
     ],
     "title": "Approval",
+    "type": "object"
+  },
+  "ProposalResponse": {
+    "$defs": {
+      "Approval": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "approve",
+              "decline"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "user_id": {
+            "pattern": "^demo-[a-z0-9-]+$",
+            "title": "User Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "proposal_id",
+          "user_id",
+          "decided_at"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "enum": [
+              "coffee",
+              "meal",
+              "walk",
+              "study",
+              "concert"
+            ],
+            "title": "Activity",
+            "type": "string"
+          },
+          "slot": {
+            "$ref": "#/$defs/CandidateSlot"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location"
+          },
+          "status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "approved",
+              "declined",
+              "scheduled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity",
+          "slot",
+          "id",
+          "request_id"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "proposal": {
+        "$ref": "#/$defs/Proposal"
+      },
+      "approvals": {
+        "items": {
+          "$ref": "#/$defs/Approval"
+        },
+        "title": "Approvals",
+        "type": "array"
+      }
+    },
+    "required": [
+      "proposal",
+      "approvals"
+    ],
+    "title": "ProposalResponse",
+    "type": "object"
+  },
+  "CalendarEventResponse": {
+    "additionalProperties": false,
+    "properties": {
+      "proposal_id": {
+        "title": "Proposal Id",
+        "type": "string"
+      },
+      "event_id": {
+        "title": "Event Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "proposal_id",
+      "event_id"
+    ],
+    "title": "CalendarEventResponse",
     "type": "object"
   }
 }
