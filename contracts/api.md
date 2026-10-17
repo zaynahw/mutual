@@ -1,6 +1,6 @@
 # Mutual API contract — bounded negotiation MVP
 
-`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
+`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The three /friend-requests routes are also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
 
 ## Agreed scope
 
@@ -40,9 +40,9 @@ Calendar read-sharing permission does not determine matching permission: backend
 | GET /users/me | none | 200 User | Implemented; selected demo owner only |
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
 | GET /users/{id}/schedule?start=...&end=... | aware query timestamps | 200 ScheduleResponse | Filter windows and calendar independently; validate range |
-| POST /friend-requests | FriendRequestCreate | 201 FriendRequest | Sender from caller; known distinct recipient |
-| GET /friend-requests | none | 200 FriendRequest[] | Caller is sender or recipient |
-| POST /friend-requests/{id}/respond | FriendRequestRespond | 200 FriendRequest | Recipient only; server stamps responded_at |
+| POST /friend-requests | FriendRequestCreate | 201 FriendRequest | Implemented; sender from caller; known distinct recipient |
+| GET /friend-requests | none | 200 FriendRequest[] | Implemented; caller is sender or recipient |
+| POST /friend-requests/{id}/respond | FriendRequestRespond | 200 FriendRequest | Implemented; recipient only; server stamps responded_at |
 | GET /users/me/social-windows | none | 200 SocialWindow[] | Implemented; owner only |
 | POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends returns temporary 409 until friendship setup |
 | PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends temporarily returns 409 |
@@ -100,3 +100,16 @@ updates leave the stored record unchanged. Selected-friends edits remain deferre
 seeded selected-friends windows can still be deleted by their owner. There is no
 undo for deletion. Re-running the seed restores missing fixture windows, while
 preserving edits to existing records.
+
+## Friendship endpoint behavior
+
+POST /friend-requests creates a pending request for the caller. A self-request
+returns 422, a missing recipient 404, and an active request/friendship in either
+direction 409. Input cannot override sender, status, IDs, or timestamps.
+GET /friend-requests returns only the caller's incoming/outgoing history.
+POST /friend-requests/{id}/respond returns 403 for a non-recipient, 404 for a
+missing request, 422 for a malformed decision, and 409 for changing a finalized
+decision. Repeating the same answer returns the unchanged record and timestamp.
+Acceptance is stored and available through are_friends; cross-user schedule
+filtering and selected-friends validation remain unimplemented. Friendship UI
+and fixture friendship seeding are not connected yet.

@@ -195,6 +195,22 @@ provides `create_friend_request(sender_id, recipient_id)` and
 `list_friend_requests(user_id)` for pending creation and incoming/outgoing history.
 These internal functions do not authenticate callers; future routes must derive
 IDs from the selected identity. Duplicate/unknown-user SQLite errors propagate
-to callers. Responding, routes, UI, and friendship seed inserts are not
-implemented yet. Run `.venv/bin/python -m backend.database` to add the
+to callers. `respond_to_friend_request(request_id, recipient_id, decision)`
+allows the recipient to accept/decline atomically. Repeating the same answer
+preserves its timestamp; changing a finalized answer is rejected. LookupError
+means missing, PermissionError means non-recipient, and ValueError means an
+invalid/conflicting decision. Friendship API routes are implemented; UI and
+friendship seed inserts are not connected yet. Run `.venv/bin/python -m backend.database` to add the
 empty table to an existing database without replacing users or windows.
+
+## Friend request API
+
+All routes require a seeded `X-Demo-User-Id`. Use Swagger at
+http://localhost:8000/docs to send `{"recipient_id":"demo-daniella"}` as Zaynah
+with POST /friend-requests. Switch the header to demo-daniella and use GET
+/friend-requests to find its ID, then POST /friend-requests/{id}/respond with
+`{"decision":"accept"}` or `{"decision":"decline"}`. Only the recipient may
+answer. Repeated same answers preserve the result; conflicting answers return
+409. Pending/accepted pairs cannot have duplicate requests in either direction.
+These routes do not yet affect cross-user schedule access or selected-friends
+window editing, and no friendship buttons have been added to the frontend yet.

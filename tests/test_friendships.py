@@ -5,7 +5,9 @@ import pytest
 from pydantic import ValidationError
 
 from backend.database import connect
-from backend.friendships import are_friends, create_friend_request, list_friend_requests
+from backend.friendships import (
+    are_friends, create_friend_request, list_friend_requests, respond_to_friend_request,
+)
 from backend.seed import seed_demo_data
 
 
@@ -100,3 +102,74 @@ def test_answered_history_remains_listed_and_controls_new_requests(database, sta
     else:
         create_friend_request('demo-daniella', 'demo-zaynah')
         assert len(list_friend_requests('demo-zaynah')) == 2
+
+
+@pytest.mark.parametrize('decision,status', [('accept', 'accepted'), ('decline', 'declined')])
+def test_recipient_response_persists_and_repeat_preserves_timestamp(database, decision, status):
+    request = create_friend_request('demo-zaynah', 'demo-daniella')
+    updated = respond_to_friend_request(request.id, 'demo-daniella', decision)
+    assert updated.status == status
+    assert updated.responded_at >= updated.created_at
+    assert updated.responded_at.utcoffset().total_seconds() == 0
+    assert list_friend_requests('demo-zaynah') == [updated]
+    assert are_friends('demo-zaynah', 'demo-daniella') is (decision == 'accept')
+    assert respond_to_friend_request(request.id, 'demo-daniella', decision) == updated
+
+
+@pytest.mark.parametrize('actor', ['demo-zaynah', 'demo-kusum'])
+def test_sender_and_outsider_cannot_respond_even_on_idempotent_replay(database, actor):
+    request = create_friend_request('demo-zaynah', 'demo-daniella')
+    with pytest.raises(PermissionError):
+        respond_to_friend_request(request.id, actor, 'accept')
+    assert list_friend_requests('demo-zaynah') == [request]
+    accepted = respond_to_friend_request(request.id, 'demo-daniella', 'accept')
+    with pytest.raises(PermissionError):
+        respond_to_friend_request(request.id, actor, 'accept')
+    assert list_friend_requests('demo-zaynah') == [accepted]
+
+
+@pytest.mark.parametrize('first,second', [('accept', 'decline'), ('decline', 'accept')])
+def test_answer_cannot_change(database, first, second):
+    request = create_friend_request('demo-zaynah', 'demo-daniella')
+    original = respond_to_friend_request(request.id, 'demo-daniella', first)
+    with pytest.raises(ValueError, match='already been answered'):
+        respond_to_friend_request(request.id, 'demo-daniella', second)
+    assert list_friend_requests('demo-zaynah') == [original]
+
+
+def test_missing_request_and_invalid_decision(database):
+    with pytest.raises(LookupError):
+        respond_to_friend_request('missing', 'demo-daniella', 'accept')
+    request = create_friend_request('demo-zaynah', 'demo-daniella')
+    with pytest.raises(ValueError, match='Decision must be'):
+        respond_to_friend_request(request.id, 'demo-daniella', 'maybe')
+    assert list_friend_requests('demo-zaynah') == [request]
+
+
+def test_decline_then_new_request_can_be_accepted(database):
+    first = create_friend_request('demo-zaynah', 'demo-daniella')
+    respond_to_friend_request(first.id, 'demo-daniella', 'decline')
+    second = create_friend_request('demo-daniella', 'demo-zaynah')
+    respond_to_friend_request(second.id, 'demo-zaynah', 'accept')
+    assert are_friends('demo-zaynah', 'demo-daniella') is True
+    assert len(list_friend_requests('demo-zaynah')) == 2
+
+
+def test_competing_responses_record_one_final_decision(database):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    request = create_friend_request('demo-zaynah', 'demo-daniella')
+    start = Barrier(2)
+
+    def answer(decision):
+        start.wait(timeout=5)
+        try:
+            return respond_to_friend_request(request.id, 'demo-daniella', decision).status
+        except ValueError:
+            return 'conflict'
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(answer, ['accept', 'decline']))
+    assert results.count('conflict') == 1
+    assert list_friend_requests('demo-zaynah')[0].status in results

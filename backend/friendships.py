@@ -47,6 +47,50 @@ def list_friend_requests(user_id: str) -> list[FriendRequest]:
     return [FriendRequest.model_validate(dict(row)) for row in rows]
 
 
+def respond_to_friend_request(
+    request_id: str, recipient_id: str, decision: str,
+) -> FriendRequest:
+    """Answer once as recipient; repeating the same decision is idempotent.
+
+    Callers derive recipient_id from identity. LookupError means missing,
+    PermissionError means non-recipient, and ValueError means invalid/conflicting
+    decision. A write transaction serializes the read/check/update sequence.
+    """
+    if decision not in ("accept", "decline"):
+        raise ValueError("Decision must be accept or decline")
+    new_status = "accepted" if decision == "accept" else "declined"
+
+    with connect() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM friend_requests WHERE id = ?", (request_id,),
+        ).fetchone()
+        if row is None:
+            raise LookupError("Friend request not found")
+
+        request = FriendRequest.model_validate(dict(row))
+        if request.recipient_id != recipient_id:
+            raise PermissionError("Only the recipient can respond")
+        if request.status == new_status:
+            return request
+        if request.status != "pending":
+            raise ValueError("Friend request has already been answered")
+
+        updated = FriendRequest.model_validate({
+            **request.model_dump(),
+            "status": new_status,
+            "responded_at": datetime.now(timezone.utc),
+        })
+        connection.execute(
+            """
+            UPDATE friend_requests SET status = ?, responded_at = ?
+            WHERE id = ?
+            """,
+            (updated.status, updated.responded_at.isoformat(), updated.id),
+        )
+    return updated
+
+
 def are_friends(user_a: str, user_b: str) -> bool:
     """An accepted request establishes friendship, regardless of sender."""
     first_id, second_id = sorted([user_a, user_b])
