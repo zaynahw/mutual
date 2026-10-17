@@ -257,3 +257,55 @@ New databases use the updated schema directly. Upgrade failures roll back the
 friendship table changes. Future schema changes need their own explicit migration.
 The API/schema and frontend recognize removed as inactive. Viewer permissions
 will use current accepted friendships once schedule filtering is implemented.
+
+## Audience permission helper
+
+`backend/services/permissions.py` exposes `can_access(owner, viewer, policy)` for
+trusted, backend-loaded User records. Owners always qualify; private excludes
+others; community requires matching simulated community membership; friends
+requires a currently accepted relationship; selected_friends additionally requires
+explicit selection. Removal revokes friend-based eligibility on the next check
+without removing community access. The helper does not cache grants.
+
+This helper is connected to the unified schedule route. It checks audiences only;
+callers must separately hide matching-only windows from other users, validate
+selected-friend settings, and project permitted response fields. The current
+owner-only routes and frontend remain unchanged.
+
+## Selected-friends window API
+
+The backend now accepts selected_friends when all selected IDs are accepted
+friends of the owner. Creation and editing reject self, unknown, pending,
+declined, or removed users with 422, without changing saved data. Pydantic still
+requires a nonempty unique list. Owners can change to a different audience to
+clear old selections. Audience access checks also require current friendship,
+so removing a friend revokes eligibility even if an old window retains their ID.
+The frontend picker/edit restriction remains disabled until its integration;
+use Swagger to exercise this backend feature. The unified schedule route now applies audience rules.
+
+## Unified schedule API
+
+GET /users/{id}/schedule combines saved social windows and mock calendar busy
+blocks with separate visibility checks. The header identifies the viewer, while
+{id} identifies the owner. Use Swagger or, from a seeded/running backend:
+
+```sh
+curl -G http://localhost:8000/users/demo-zaynah/schedule \
+  -H "X-Demo-User-Id: demo-daniella" \
+  --data-urlencode "start=2026-10-18T00:00:00-04:00" \
+  --data-urlencode "end=2026-10-19T00:00:00-04:00"
+```
+
+The owner may browse their own private/matching-only windows. Other viewers see
+only visible windows with an eligible audience. Calendar browsing permission is
+independent; null means not shared, [] means shared with no busy blocks. All
+intervals are clipped to the query range and no private preferences, selected
+friend lists, or calendar event details are exposed. The endpoint displays
+availability and conflicts separately; it does not calculate candidate matches.
+
+`backend/services/schedule.py` builds the filtered response; the route is in
+`backend/routes/users.py`. The dependency in `backend/dependencies.py` currently
+provides MockCalendarAdapter using simulated fixture busy data, without storing
+it in SQLite. Google integration can override that dependency without changing
+the response contract. Calendar failures return generic 502 errors. No frontend
+page/layout changes were made; the frontend lane can consume this endpoint.
