@@ -1,6 +1,6 @@
 # Mutual API contract — bounded negotiation MVP
 
-`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The send/list/respond/remove /friend-requests routes are also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
+`GET /health`, `GET /users`, `GET /users/me`, and GET/POST `/users/me/social-windows` and PUT/DELETE `/users/me/social-windows/{id}` are implemented. The send/list/respond/remove /friend-requests routes are also implemented. GET /users/{id}/schedule is also implemented. Every other route below is planned. Base URL: http://localhost:8000. JSON Schemas: [schemas.json](schemas.json). Validated four-user records and frontend payloads: [examples.json](examples.json).
 
 ## Agreed scope
 
@@ -39,7 +39,7 @@ Calendar read-sharing permission does not determine matching permission: backend
 | GET /users | none | 200 PublicUser[] | Implemented; demo directory; valid demo identity required |
 | GET /users/me | none | 200 User | Implemented; selected demo owner only |
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
-| GET /users/{id}/schedule?start=...&end=... | aware query timestamps | 200 ScheduleResponse | Filter windows and calendar independently; validate range |
+| GET /users/{id}/schedule?start=...&end=... | aware query timestamps | 200 ScheduleResponse | Implemented; filter windows/calendar independently; validate aware range |
 | POST /friend-requests | FriendRequestCreate | 201 FriendRequest | Implemented; sender from caller; known distinct recipient |
 | GET /friend-requests | none | 200 FriendRequest[] | Implemented; caller is sender or recipient |
 | POST /friend-requests/{id}/respond | FriendRequestRespond | 200 FriendRequest | Implemented; recipient only; server stamps responded_at |
@@ -89,8 +89,8 @@ private and matching-only windows. Creation accepts all four audiences; selected
 ID to be a currently accepted friend, excluding the owner. Invalid relationships
 return 422. Existing seeded selected-friends windows remain readable.
 The API requires offset-aware timestamps; the demo form converts from the owner's
-IANA timezone to UTC and rejects DST gaps/repeated times. Cross-user schedule browsing and activity-aware matching are not implemented yet.
-Audience checks exist as a helper; selected-friend write validation is enforced.
+IANA timezone to UTC and rejects DST gaps/repeated times. Cross-user schedule browsing and selected-friend write validation are implemented.
+Activity-aware matching is not implemented yet.
 
 ## Owner window edits and deletion
 
@@ -112,7 +112,7 @@ POST /friend-requests/{id}/respond returns 403 for a non-recipient, 404 for a
 missing request, 422 for a malformed decision, and 409 for changing a finalized
 decision. Repeating the same answer returns the unchanged record and timestamp.
 Acceptance is stored and available through are_friends; cross-user schedule
-filtering remains unimplemented. Selected-friends write validation is implemented. The demo friendship UI is connected; fixture friendship seeding is not.
+filtering is now implemented. Selected-friends write validation is implemented. The demo friendship UI is connected; fixture friendship seeding is not.
 
 ## Removing friendships
 
@@ -135,3 +135,24 @@ Existing windows can retain stale IDs after removal, but the audience helper
 requires a current accepted friendship and therefore denies those viewers.
 Owners may change an old window to a different audience to clear stale selections.
 The frontend selected-friend picker is not connected yet; use the API/Swagger.
+
+## Unified schedule browsing
+
+GET /users/{id}/schedule requires aware ISO start/end query values and the viewer's
+X-Demo-User-Id header. The URL ID selects the owner; the header selects the viewer.
+Missing/unknown identity returns 401, missing owner 404, invalid/missing queries
+422. Returns ScheduleResponse with public User fields, projected social windows,
+and separately authorized calendar_busy. Owners see their private/matching-only
+windows; other viewers never see matching-only windows. Audience checks use the
+current accepted friendship state. Intervals are clipped to [start,end), empty
+intersections omitted, and results sorted chronologically. This is a browsing
+projection, not a subtraction of calendar conflicts or agent candidate generation.
+
+Calendar browsing denial returns calendar_busy=null without calling get_busy.
+Authorized empty ranges return []. Only the owner's busy records are included;
+no calendar metadata or user IDs are present in busy blocks. Adapter exceptions
+return a generic 502, never their raw messages. Friendship eligibility is rechecked
+after awaiting calendar results. The default dependency supplies simulated busy
+intervals from examples.json; override backend.dependencies.get_calendar_adapter
+for Google integration or tests. It uses the existing CalendarAdapter protocol.
+No real Google calls or frontend changes are included in this endpoint work.
