@@ -1,12 +1,12 @@
 import React from 'react';
-import { createMyWindow, deleteMyWindow, listMyWindows, updateMyWindow } from '../lib/api';
-import type { Activity, SocialWindow, SocialWindowInput, User } from '../lib/api';
+import { createMyWindow, deleteMyWindow, listMyWindows, updateMyWindow, listFriendRequests } from '../lib/api';
+import type { Activity, SocialWindow, SocialWindowInput, User, PublicUser } from '../lib/api';
 import { isoToZonedInput, zonedInputToISO } from '../lib/time';
 
 import { SocialWindowForm } from './SocialWindowForm';
 import { SocialWindowList } from './SocialWindowList';
 
-export function SocialWindows({ user }: { user: User }) {
+export function SocialWindows({ user, users, active }: { user: User; users: PublicUser[]; active: boolean }) {
   const [windows, setWindows] = React.useState<SocialWindow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [listError, setListError] = React.useState('');
@@ -17,6 +17,8 @@ export function SocialWindows({ user }: { user: User }) {
   const [saving, setSaving] = React.useState(false);
   const [start, setStart] = React.useState('');
   const [end, setEnd] = React.useState('');
+  const [selectedFriends, setSelectedFriends] = React.useState<string[]>([]);
+  const [friends, setFriends] = React.useState<PublicUser[]>([]);
   const [chosen, setChosen] = React.useState<Activity[]>([]);
   const [audience, setAudience] = React.useState<SocialWindowInput['visibility']['audience']>('private');
   const [mode, setMode] = React.useState<SocialWindowInput['sharing_mode']>('visible');
@@ -25,22 +27,27 @@ export function SocialWindows({ user }: { user: User }) {
 
   React.useEffect(() => () => pendingSave.current?.abort(), []);
   React.useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     setLoading(true);
     setListError('');
-    listMyWindows(user.id, controller.signal).then(data => {
-      if (!controller.signal.aborted) setWindows(data);
+    Promise.all([listMyWindows(user.id, controller.signal), listFriendRequests(user.id, controller.signal)]).then(([data, relationships]) => {
+      if (!controller.signal.aborted) {
+        setWindows(data);
+        const ids = relationships.filter(item => item.status === 'accepted').map(item => item.sender_id === user.id ? item.recipient_id : item.sender_id);
+        setFriends(users.filter(person => ids.includes(person.id)));
+      }
     }).catch(() => {
       if (!controller.signal.aborted) setListError('Could not load windows. Check the backend and retry.');
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [user.id, reload]);
+  }, [user.id, reload, active, users]);
 
   function resetForm() {
     setEditingId(null);
     setStart('');
     setEnd('');
-    setChosen([]);
+    setChosen([]); setSelectedFriends([]);
     setAudience('private');
     setMode('visible');
   }
@@ -50,7 +57,7 @@ export function SocialWindows({ user }: { user: User }) {
     setStart(isoToZonedInput(window.start, user.timezone));
     setEnd(isoToZonedInput(window.end, user.timezone));
     setChosen([...window.allowed_activities]);
-    setAudience(window.visibility.audience);
+    setAudience(window.visibility.audience); setSelectedFriends(window.visibility.selected_friend_ids);
     setMode(window.sharing_mode);
     setError('');
     setNotice('');
@@ -84,9 +91,10 @@ export function SocialWindows({ user }: { user: User }) {
       const endISO = zonedInputToISO(end, user.timezone);
       if (Date.parse(endISO) <= Date.parse(startISO)) throw new Error('End must be after start.');
       setSaving(true);
+      if (audience === 'selected_friends' && (loading || listError || selectedFriends.length === 0)) throw new Error('Choose at least one currently accepted friend.');
       const input: SocialWindowInput = {
         start: startISO, end: endISO, allowed_activities: chosen,
-        visibility: { audience, selected_friend_ids: [] }, sharing_mode: mode,
+        visibility: { audience, selected_friend_ids: audience === 'selected_friends' ? selectedFriends : [] }, sharing_mode: mode,
       };
       if (editingId) await updateMyWindow(user.id, editingId, input, controller.signal);
       else await createMyWindow(user.id, input, controller.signal);
@@ -105,7 +113,7 @@ export function SocialWindows({ user }: { user: User }) {
     <div className="grid gap-8 md:grid-cols-2">
       <SocialWindowForm
         editingId={editingId} saving={saving} start={start} end={end}
-        chosen={chosen} audience={audience} mode={mode} error={error} notice={notice}
+        chosen={chosen} audience={audience} friends={friends} selectedFriends={selectedFriends} setSelectedFriends={setSelectedFriends} mode={mode} error={error} notice={notice}
         setStart={setStart} setEnd={setEnd} setChosen={setChosen}
         setAudience={setAudience} setMode={setMode} onSubmit={submit}
         onCancel={() => { resetForm(); setError(''); }}

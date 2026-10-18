@@ -23,7 +23,7 @@ from agent.prompts import (
     build_decide_user_prompt,
     build_rank_user_prompt,
 )
-from agent.schemas import AgentDecision, OwnerPrivateContext
+from agent.schemas import AgentDecision, MODEL_DECISION, OwnerPrivateContext
 
 
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
@@ -72,6 +72,12 @@ def rank_candidate_slots(
             ],
             temperature=0.1,
             num_predict=192,
+            format={
+                "type": "object",
+                "properties": {"ranked_indices": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": len(slots) - 1}, "minItems": 1},
+                               "reason": {"type": "string", "maxLength": 200}},
+                "required": ["ranked_indices"], "additionalProperties": False,
+            },
         )
         ranked = _parse_ranked_indices(raw, n=len(slots))
         return [slots[i] for i in ranked]
@@ -120,7 +126,6 @@ def decide_plan(
             "option_index": pending.option_index,
             "start": pending.slot.start.isoformat() if pending.slot else None,
             "end": pending.slot.end.isoformat() if pending.slot else None,
-            "reason": pending.reason,
         }
 
     try:
@@ -129,8 +134,9 @@ def decide_plan(
                 ChatMessage(role="system", content=DECIDE_SYSTEM_PROMPT),
                 ChatMessage(role="user", content=build_decide_user_prompt(payload)),
             ],
-            temperature=0.1,
-            num_predict=220,
+            temperature=0,
+            num_predict=350,
+            format=MODEL_DECISION.json_schema(),
         )
         return _parse_agent_decision(raw, request=request, options=opts, ctx=ctx, mode=mode)
     except (LocalLLMUnavailable, LocalLLMError, ValueError):
@@ -148,10 +154,10 @@ def decide_plan(
                     request=request,
                     ctx=ctx,
                     reason="Fallback accept of pending offer",
-                )
+                ).model_copy(update={"used_fallback": True})
             except (ValueError, TypeError):
                 pass
-        return deterministic_fallback_plan(request, opts, ctx)
+        return deterministic_fallback_plan(request, opts, ctx).model_copy(update={"used_fallback": True})
 
 
 def _extract_json_object(raw: str) -> dict[str, Any]:
@@ -204,7 +210,7 @@ def _parse_agent_decision(
     ctx: OwnerPrivateContext,
     mode: DecideMode,
 ) -> AgentDecision:
-    data = _extract_json_object(raw)
+    data = MODEL_DECISION.validate_python(_extract_json_object(raw)).model_dump()
     decision = data.get("decision")
     if decision not in {"propose", "counter", "accept", "no_match"}:
         raise ValueError("invalid decision")

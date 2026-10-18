@@ -9,21 +9,13 @@ from backend.database import connect, initialize_database
 from backend.models import SocialWindow, User
 
 
-@pytest.fixture
-def database(tmp_path, monkeypatch):
-    path = tmp_path / "test.db"
-    monkeypatch.setenv("MUTUAL_DATABASE_PATH", str(path))
-    initialize_database()
-    return path
-
-
 def records():
     fixture = Path(__file__).resolve().parents[1] / "contracts/examples.json"
     data = json.loads(fixture.read_text())
     return User.model_validate(data["users"][0]), SocialWindow.model_validate(data["social_windows"][0])
 
 
-def test_models_survive_connection_close_and_reinitialization(database):
+def test_models_survive_connection_close_and_reinitialization(initialized_database):
     user, window = records()
     with connect() as connection:
         connection.execute("INSERT INTO users (id, data) VALUES (?, ?)",
@@ -39,7 +31,7 @@ def test_models_survive_connection_close_and_reinitialization(database):
     assert SocialWindow.model_validate_json(window_row["data"]) == window
 
 
-def test_exception_rolls_back_and_closes_connection(database):
+def test_exception_rolls_back_and_closes_connection(initialized_database):
     user, _ = records()
     with pytest.raises(RuntimeError, match="cancel transaction"):
         with connect() as connection:
@@ -52,7 +44,7 @@ def test_exception_rolls_back_and_closes_connection(database):
         assert check.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
 
 
-def test_unknown_owner_is_rejected(database):
+def test_unknown_owner_is_rejected(initialized_database):
     _, window = records()
     with pytest.raises(sqlite3.IntegrityError):
         with connect() as connection:
@@ -60,7 +52,7 @@ def test_unknown_owner_is_rejected(database):
                                (window.id, window.user_id, window.model_dump_json()))
 
 
-def test_duplicate_user_rolls_back_whole_transaction(database):
+def test_duplicate_user_rolls_back_whole_transaction(initialized_database):
     user, _ = records()
     with pytest.raises(sqlite3.IntegrityError):
         with connect() as connection:
@@ -71,7 +63,7 @@ def test_duplicate_user_rolls_back_whole_transaction(database):
         assert connection.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 0
 
 
-def test_success_closes_connection(database):
+def test_success_closes_connection(initialized_database):
     with connect() as connection:
         assert connection.execute("PRAGMA foreign_keys").fetchone()[0] == 1
     with pytest.raises(sqlite3.ProgrammingError):

@@ -14,7 +14,7 @@ def can_access(owner: User, viewer: User, policy: VisibilityPolicy) -> bool:
     if policy.audience == "private":
         return False
     if policy.audience == "community":
-        return owner.community == viewer.community
+        return owner.community is not None and owner.community == viewer.community
     if policy.audience == "friends":
         return are_friends(owner.id, viewer.id)
     if policy.audience == "selected_friends":

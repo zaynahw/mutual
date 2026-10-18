@@ -1,0 +1,40 @@
+/* Product styling around the shared, API-backed controls. */
+.mutual-product .brand { border: 0; background: transparent; cursor: pointer; }
+.mutual-product .primary-nav button { border: 0; cursor: pointer; background: transparent; }
+.mutual-product .primary-nav button.active { background: #f3deed; }
+.identity-picker { display: grid; gap: 3px; color: #716873; font-size: 11px; }
+.identity-picker select { max-width: 130px; padding: 6px; border: 1px solid #eadfe8; border-radius: 4px; background: white; color: #352a33; }
+.demo-notice { margin-bottom: 24px; color: #716873; font-size: 12px; }
+.demo-notice a { text-decoration: underline; }
+.mutual-product .demo-panel { border-color: #eadfe8; border-radius: 8px; box-shadow: none; }
+.mutual-product .demo-panel h2 { color: #352a33; font-size: 23px; }
+.mutual-product .demo-panel button:not(.demo-secondary) { background: var(--pink, #c653a4); }
+.mutual-product .demo-panel input, .mutual-product .demo-panel select, .mutual-product textarea { border: 1px solid #d6cbd4; border-radius: 5px; padding: 10px; background: white; color: #352a33; }
+.mutual-product textarea { width: 100%; resize: vertical; min-height: 100px; }
+.mutual-product button { cursor: pointer; }
+.mutual-product button:disabled { cursor: wait; opacity: .55; }
+.mutual-product button:focus-visible, .mutual-product select:focus-visible, .mutual-product summary:focus-visible { outline: 3px solid #b54d9d; outline-offset: 3px; }
+.mutual-product .bg-teal-50 { background-color: #fff5fc; }
+.mutual-product .border-teal-200 { border-color: #eadfe8; }
+.product-request { max-width: 850px; }
+.plan-workspace { display: grid; grid-template-columns: 270px minmax(0,1fr); gap: 24px; align-items: start; }
+.plan-inbox { display: grid; gap: 10px; }
+.plan-inbox h2 { margin: 0; font-size: 20px; }
+.inbox-item { display: grid; gap: 6px; padding: 16px; border: 1px solid #eadfe8; border-radius: 6px; background: #fff; text-align: left; }
+.inbox-item span { font-size: 12px; color: #716873; }
+.inbox-item.selected { border-color: #b54d9d; background: #fff5fc; }
+.search-details, .agent-summary { padding: 12px; border: 1px solid #eadfe8; border-radius: 6px; font-size: 13px; }
+.search-details summary, details summary { cursor: pointer; font-weight: 600; }
+.search-details p { margin: 10px 0 0; }
+.agent-summary p { margin-bottom: 10px; }
+.plan-list .plan-card { width: 100%; text-align: left; }
+@media (max-width: 760px) {
+ .plan-workspace { grid-template-columns: 1fr; }
+ .plan-inbox { max-height: 280px; overflow-y: auto; }
+ .identity-picker { font-size: 10px; }
+}
+.calendar-connection { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px;margin-bottom:24px;border:1px solid #eadfe8;background:var(--pink-pale);border-radius:6px;font-size:14px; }
+.login-page { max-width:720px;padding-top:12vh; }
+.login-page h1 { margin:24px 0;font-size:clamp(36px,6vw,64px);line-height:1.1; }
+.login-page p { line-height:1.7; }
+.auth-feedback [role=alert] { padding:12px 32px;color:#9b2345;background:#fff1f4; }

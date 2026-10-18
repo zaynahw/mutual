@@ -61,6 +61,7 @@ class LocalLLM:
         *,
         temperature: float = 0.2,
         num_predict: int = 256,
+        format: dict[str, Any] | str | None = None,
     ) -> str:
         normalized: list[dict[str, str]] = []
         for message in messages:
@@ -76,12 +77,15 @@ class LocalLLM:
                 "model": self.model,
                 "messages": normalized,
                 "stream": False,
+                **({"format": format} if format is not None else {}),
                 "options": {
                     "temperature": temperature,
                     "num_predict": num_predict,
                 },
             },
         )
+        if payload.get("done_reason") == "length":
+            raise LocalLLMError("Local model response exceeded its output token limit")
         content = (payload.get("message") or {}).get("content", "")
         if not isinstance(content, str) or not content.strip():
             raise LocalLLMError("Local model returned an empty response")

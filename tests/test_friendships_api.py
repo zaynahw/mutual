@@ -1,18 +1,7 @@
 """Exercise the real HTTP -> identity -> friendship -> SQLite flow."""
 import pytest
-from fastapi.testclient import TestClient
 
 from backend.friendships import are_friends
-from backend.main import app
-from backend.seed import seed_demo_data
-
-
-@pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.setenv('MUTUAL_DATABASE_PATH', str(tmp_path / 'friend-api.db'))
-    seed_demo_data()
-    with TestClient(app) as client:
-        yield client
 
 
 def headers(user='zaynah'):

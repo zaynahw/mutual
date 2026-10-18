@@ -8,7 +8,6 @@ from backend.friendships import create_friend_request, remove_friendship, respon
 from backend.main import app
 from backend.models import BusyInterval, SocialWindow, VisibilityPolicy
 from backend.repositories import create_social_window, get_user, save_user
-from backend.seed import seed_demo_data
 
 
 class FakeCalendar:
@@ -30,9 +29,7 @@ class FakeCalendar:
 
 
 @pytest.fixture
-def setup(tmp_path, monkeypatch):
-    monkeypatch.setenv('MUTUAL_DATABASE_PATH', str(tmp_path / 'schedule.db'))
-    seed_demo_data()
+def setup(seeded_database):
     for window_id, mode in [('private-window', 'visible'), ('hidden-window', 'matching_only')]:
         create_social_window(SocialWindow(
             id=window_id, user_id='demo-zaynah', start='2026-10-18T14:00:00-04:00',

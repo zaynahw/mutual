@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, TypeAdapter
 
 from backend.models import (
     Activity,
@@ -24,6 +24,8 @@ class OwnerPrivateContext(Model):
     soft_preference_note: str = Field(default="", max_length=1000)
     max_duration_minutes: DurationMinutes = 120
     timezone: str = "America/New_York"
+    request_preferences: str = Field(default="", max_length=1000)
+    preferred_periods: list[Literal["morning", "afternoon", "evening"]] = Field(default_factory=list)
 
 
 class AgentDecision(Model):
@@ -34,11 +36,30 @@ class AgentDecision(Model):
     slot: CandidateSlot | None = None
     option_index: int | None = Field(default=None, ge=0)
     reason: str = Field(default="", max_length=200)
+    used_fallback: bool = False
 
     def exact_plan(self) -> ProposalCreate | None:
         if self.decision == "no_match" or self.activity is None or self.slot is None:
             return None
         return ProposalCreate(activity=self.activity, slot=self.slot)
+
+
+class ModelPlanChoice(Model):
+    """Wire format requested from Ollama, before resolving an exact slot."""
+
+    decision: Literal["propose", "counter", "accept"]
+    option_index: Annotated[int, Field(strict=True, ge=0)]
+    activity: Activity
+    duration_minutes: DurationMinutes
+    reason: str = Field(default="", max_length=200)
+
+
+class ModelNoMatch(Model):
+    decision: Literal["no_match"]
+    reason: str = Field(default="", max_length=200)
+
+
+MODEL_DECISION = TypeAdapter(ModelPlanChoice | ModelNoMatch)
 
 
 class NegotiationTurn(Model):

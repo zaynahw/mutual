@@ -25,6 +25,11 @@
           "concert"
         ],
         "max_duration_minutes": 60
+      },
+      "matching": {
+        "mode": "social_windows",
+        "start_hour": 9,
+        "end_hour": 21
       }
     },
     {
@@ -50,6 +55,11 @@
           "study"
         ],
         "max_duration_minutes": 120
+      },
+      "matching": {
+        "mode": "social_windows",
+        "start_hour": 9,
+        "end_hour": 21
       }
     },
     {
@@ -75,6 +85,11 @@
           "meal"
         ],
         "max_duration_minutes": 120
+      },
+      "matching": {
+        "mode": "social_windows",
+        "start_hour": 9,
+        "end_hour": 21
       }
     },
     {
@@ -100,6 +115,11 @@
           "coffee"
         ],
         "max_duration_minutes": 120
+      },
+      "matching": {
+        "mode": "social_windows",
+        "start_hour": 9,
+        "end_hour": 21
       }
     }
   ],

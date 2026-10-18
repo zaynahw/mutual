@@ -3,20 +3,36 @@ import json
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
+from backend import accounts, settings
 
-from backend.models import BusyInterval, User
+from backend.models import BusyInterval, HangoutRequest, Proposal, User
+from backend.proposals import get_proposal
 from backend.repositories import get_user
-from backend.services.calendar_adapter import CalendarAdapter, MockCalendarAdapter
+from backend.hangouts import get_hangout_request
+from backend.services.calendar_adapter import CalendarAdapter
+from backend.services.demo_calendar import DemoCalendarAdapter
+from backend.services.agent_adapter import AgentAdapter, build_agent_adapter
 
 
 def get_current_user(
+    request: Request,
     demo_user_id: Annotated[str | None, Header(alias="X-Demo-User-Id")] = None,
 ) -> User:
+    token = request.cookies.get(accounts.SESSION_COOKIE)
+    if token and settings.mode() == 'google':
+        user = accounts.session_user(token)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Your session expired; sign in again")
+        if request.method not in ('GET','HEAD','OPTIONS') and request.headers.get('origin') != settings.frontend_url():
+            raise HTTPException(status_code=403, detail="Request origin is not allowed")
+        return user
+    if settings.mode() != 'demo':
+        raise HTTPException(status_code=401, detail="Sign in with Google")
     if demo_user_id is None:
         raise HTTPException(status_code=401, detail="Select a demo user")
     user = get_user(demo_user_id)
-    if user is None:
+    if user is None or not user.is_demo:
         raise HTTPException(status_code=401, detail="Unknown demo user")
     return user
 
@@ -29,6 +45,36 @@ def get_calendar_adapter() -> CalendarAdapter:
 
     Busy fixtures are simulated and stay outside SQLite. No OAuth calls occur.
     """
+    if settings.mode() == 'google':
+        from backend.services.google_calendar import GoogleCalendarAdapter
+        return GoogleCalendarAdapter()
     fixture = Path(__file__).resolve().parents[1] / 'contracts' / 'examples.json'
     data = json.loads(fixture.read_text())
-    return MockCalendarAdapter([BusyInterval.model_validate(value) for value in data['busy_intervals']])
+    return DemoCalendarAdapter([BusyInterval.model_validate(value) for value in data['busy_intervals']])
+
+
+def get_participant_request(request_id: str, current_user: CurrentUser) -> HangoutRequest:
+    """Shared access check for request retrieval and future matching endpoints."""
+    request = get_hangout_request(request_id)
+    if request is None or current_user.id not in (request.requester_id, request.invitee_id):
+        raise HTTPException(status_code=404, detail="Hangout request not found")
+    return request
+
+
+ParticipantRequest = Annotated[HangoutRequest, Depends(get_participant_request)]
+
+
+def get_participant_proposal(proposal_id: str, current_user: CurrentUser) -> Proposal:
+    """Conceal missing proposals and plans belonging to other participants."""
+    proposal = get_proposal(proposal_id)
+    request = get_hangout_request(proposal.request_id) if proposal else None
+    if request is None or current_user.id not in (request.requester_id, request.invitee_id):
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return proposal
+
+
+ParticipantProposal = Annotated[Proposal, Depends(get_participant_proposal)]
+
+
+def get_agent_adapter() -> AgentAdapter:
+    return build_agent_adapter()

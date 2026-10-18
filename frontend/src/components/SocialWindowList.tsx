@@ -46,7 +46,7 @@ export function SocialWindowList({
               </p>
               <div className="flex gap-4">
                 <button
-                  disabled={saving || window.visibility.audience === 'selected_friends'}
+                  disabled={saving}
                   onClick={() => onEdit(window)}
                   className="text-teal-800 underline disabled:opacity-50"
                 >Edit</button>
@@ -54,9 +54,6 @@ export function SocialWindowList({
                   Delete
                 </button>
               </div>
-              {window.visibility.audience === 'selected_friends' && (
-                <p className="text-xs text-stone-500">Editing requires friendship setup.</p>
-              )}
               {confirmDeleteId === window.id && (
                 <div className="rounded border border-red-200 bg-red-50 p-3">
                   <p>Delete this social window? This cannot be undone.</p>

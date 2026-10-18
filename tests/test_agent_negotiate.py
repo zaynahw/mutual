@@ -285,3 +285,12 @@ def test_build_adapter_and_owner_context():
     assert oc.owner_id == "demo-zaynah"
     assert oc.soft_preference_note == "quiet cafes"
     assert oc.max_duration_minutes == 90
+
+
+def test_accept_requires_an_exact_choice_and_no_match_remains_valid():
+    with pytest.raises(ValueError):
+        decide_plan(make_request(),make_options(),ctx('demo-daniella'),mode='review',
+                    llm=StubLLM('{"decision":"accept","reason":"yes"}'),fallback_on_error=False)
+    decision = decide_plan(make_request(),make_options(),ctx('demo-daniella'),mode='review',
+                           llm=StubLLM('{"decision":"no_match","reason":"none acceptable"}'),fallback_on_error=False)
+    assert decision.decision == 'no_match'

@@ -107,3 +107,38 @@ AGENT_MAX_ROUNDS=3
 
 Each `decide_plan` call receives **one** owner's `soft_preference_note`.
 Orchestration never passes owner A's note into owner B's prompt.
+
+## Backend integration in this branch
+
+POST /hangout-requests/{id}/negotiate is now wired. It requires participant demo
+identity and an Idempotency-Key. The backend creates candidates, loads both owner
+contexts, and validates the final recommendation again after inference. It saves
+pending proposals with **zero human approvals**. Manual proposals remain separate.
+
+Shared pending offers omit free-text reasons, and public traces contain only
+validated structured choices. The response and saved proposal label source as
+local_agent, demo_fallback, or mock. Any fallback turn marks the whole outcome
+as demo_fallback; mock results never claim inference. Backend review rounds are
+capped at three, with a 120-second overall timeout returning a generic 502.
+
+Environment variables must be exported in the server shell; root .env is not
+loaded automatically. For a real inference check, run Ollama with the model
+already available, then start the backend with:
+
+```sh
+AGENT_ADAPTER=local AGENT_LOCAL_FALLBACK=0 uvicorn backend.main:app --reload --port 8000
+```
+
+Choose a request with valid candidates on /demo.html and click Let agents suggest
+a plan. With fallback disabled, model failures are visible errors rather than
+simulated agreement. Default AGENT_ADAPTER=mock runs without Ollama.
+
+## Structured responses
+
+LocalLLM.chat sends Ollama a JSON schema through format. Negotiation requires
+option_index, activity, and duration_minutes for propose/counter/accept; no_match
+uses a separate schema. Prompt inputs are serialized as JSON, and negotiation
+uses temperature 0 with a 350-token output budget. Truncated responses are rejected.
+Schema constraints do not replace candidate checks, privacy checks, or human consent.
+Model weights live in Ollama’s model storage, outside this repository; agent/ contains
+our prompts, client, negotiation logic, and schemas.
