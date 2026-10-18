@@ -5,7 +5,8 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 
-from backend.models import BusyInterval, HangoutRequest, User
+from backend.models import BusyInterval, HangoutRequest, Proposal, User
+from backend.proposals import get_proposal
 from backend.repositories import get_user
 from backend.hangouts import get_hangout_request
 from backend.services.calendar_adapter import CalendarAdapter, MockCalendarAdapter
@@ -44,3 +45,15 @@ def get_participant_request(request_id: str, current_user: CurrentUser) -> Hango
 
 
 ParticipantRequest = Annotated[HangoutRequest, Depends(get_participant_request)]
+
+
+def get_participant_proposal(proposal_id: str, current_user: CurrentUser) -> Proposal:
+    """Conceal missing proposals and plans belonging to other participants."""
+    proposal = get_proposal(proposal_id)
+    request = get_hangout_request(proposal.request_id) if proposal else None
+    if request is None or current_user.id not in (request.requester_id, request.invitee_id):
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    return proposal
+
+
+ParticipantProposal = Annotated[Proposal, Depends(get_participant_proposal)]

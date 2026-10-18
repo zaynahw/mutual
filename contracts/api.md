@@ -55,14 +55,15 @@ All timestamps are timezone-aware ISO 8601. Intervals are half-open [start,end);
 | GET /hangout-requests/{id} | none | 200 HangoutRequest | Implemented; participants only; missing/non-owned returns identical 404 |
 | POST /hangout-requests/{id}/candidates | none | 200 CandidateOption[] | Implemented; participants only; both window policies and hard constraints enforced |
 
+| POST /hangout-requests/{id}/proposals | ProposalCreate | 201 Proposal | Participants only; fresh candidate validation; invalid/stale plan 409; inherited location |
+| GET /proposals/{id} | none | 200 ProposalResponse | Participants only; missing/non-owned 404; approvals currently empty |
+
 ## Planned routes (not available)
 
 | Method/path | Request schema | Success response | Rules |
 |---|---|---|---|
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
 | POST /hangout-requests/{id}/negotiate | none | 201 Proposal | Explicit user action; backend coordinates agents and validates result; 409 if no match |
-| POST /hangout-requests/{id}/proposals | ProposalCreate | 201 Proposal | Participant only; validates choices and slot; copies location from request |
-| GET /proposals/{id} | none | 200 ProposalResponse | Participants only |
 | POST /proposals/{id}/approvals | ApprovalCreate | 200 ProposalResponse | Caller must be participant; server supplies identity/time |
 | POST /proposals/{id}/calendar-event | none; Idempotency-Key header | 201 CalendarEventResponse; replay 200 | Both approvals and final validation required |
 
@@ -137,11 +138,11 @@ The backend privately checks both calendars even if calendar browsing is disable
 but skips reads if windows/constraints already rule out any match. Busy conflicts
 are subtracted, intervals clipped, and settings/windows/friendships refreshed after
 adapter calls. Failures return 502, not free time. No inference, proposal, approval,
-or event creation happens in this operation. Groups are not supported.
+or event creation happens in the candidates operation. Groups are not supported.
 
-## Planned proposal lifecycle
+## Proposal lifecycle
 
-These rules describe unfinished services. A proposal must select a request-allowed
+Proposal creation and viewing are implemented. Approval and event actions remain planned. A proposal must select a request-allowed
 activity and exact allowed duration entirely within valid activity-specific
 availability. Location carries over from the request. Backend validates agent or
 manual output against current constraints and permissions.
@@ -178,8 +179,8 @@ notes. Backend validation and human approvals remain authoritative.
 |---|---|
 | 401 | Missing/unknown demo identity |
 | 403 | Non-recipient/non-participant friendship action |
-| 404 | Missing record; also used to conceal non-owned windows/requests |
-| 409 | Duplicate active relationship or conflicting state |
+| 404 | Missing record; also used to conceal non-owned windows/requests/proposals |
+| 409 | Duplicate active relationship, conflicting state, or invalid/stale proposal |
 | 422 | Malformed inputs, invalid selections, or self-request |
 | 502 | Calendar lookup failed |
 
