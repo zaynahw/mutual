@@ -1,79 +1,109 @@
-# Agent lane — local model
+# Agent lane — local model + negotiation
 
 Offline personal-agent stack for Mutual. Uses a locally running Ollama model
 (`llama3.2:1b` by default). Model output is **advisory only**; the backend must
 revalidate permissions, intervals, boundaries, and approvals.
 
+## What it does
+
+1. **Rank** (legacy): reorder `CandidateSlot`s.
+2. **Decide**: one owner's agent picks `propose` / `counter` / `accept` / `no_match`
+   from `CandidateOption`s using that owner's private prefs only.
+3. **Orchestrate**: bounded two-agent negotiation → `NegotiationResult`
+   (`agreed` + exact `ProposalCreate`, or `no_match` / `exhausted`).
+
 ## Layout
 
 | Path | Role |
 |---|---|
-| `local_llm.py` | HTTP client for local Ollama (`/api/chat`, `/api/tags`) |
-| `negotiate.py` | Ranks `CandidateSlot`s for a `HangoutRequest` |
-| `prompts.py` | Ranking system/user prompts (JSON-only replies) |
-| `config.py` | `OLLAMA_HOST`, `OLLAMA_MODEL`, timeouts, fallback |
+| `schemas.py` | `OwnerPrivateContext`, `AgentDecision`, `NegotiationResult` |
+| `local_llm.py` | HTTP client for local Ollama |
+| `plan_utils.py` | Validate options → exact duration-sized slots; deterministic fallback |
+| `negotiate.py` | `rank_candidate_slots`, `decide_plan` |
+| `orchestrate.py` | `negotiate_hangout` (two agents, max rounds) |
+| `prompts.py` | JSON-only ranking / decision prompts |
+| `config.py` | Host, model, fallback, rounds |
+| `demo.py` | Live Ollama smoke demo |
 
-Backend integration: `backend/services/agent_adapter.py` → `LocalAgentAdapter`
-calls `agent.negotiate.rank_candidate_slots`.
+Backend: `backend/services/agent_adapter.py`
+(`LocalAgentAdapter` / `MockAgentAdapter` / `build_agent_adapter` /
+`owner_context_from_user`).
 
-## Prerequisites
+## Contract (I/O)
 
-1. Ollama listening on `http://127.0.0.1:11434`
-2. Model pulled once while online, e.g. `ollama pull llama3.2:1b`
+**Shared input**
 
-If you already have the zero-cloud voice stack under `~/local_llm`, start it with:
+- `HangoutRequest`
+- `list[CandidateOption]` (backend-filtered)
 
-```sh
-~/local_llm/scripts/phase1_chat.sh
+**Private input (per owner, never cross-sent)**
+
+```json
+{
+  "owner_id": "demo-zaynah",
+  "preferred_activities": ["coffee"],
+  "soft_preference_note": "quiet cafes near campus",
+  "max_duration_minutes": 90,
+  "timezone": "America/New_York"
+}
+```
+
+**Turn JSON from the model**
+
+```json
+{
+  "decision": "propose",
+  "option_index": 1,
+  "activity": "coffee",
+  "duration_minutes": 30,
+  "reason": "morning coffee"
+}
+```
+
+**Orchestration output**
+
+```json
+{
+  "status": "agreed",
+  "proposal": {
+    "activity": "coffee",
+    "slot": {"start": "2026-10-18T11:00:00+00:00", "end": "2026-10-18T11:30:00+00:00"}
+  },
+  "turns": ["…"],
+  "reason": "Both agents aligned"
+}
+```
+
+When backend implements `POST /hangout-requests/{id}/negotiate`, call:
+
+```python
+adapter = build_agent_adapter()  # AGENT_ADAPTER=local|mock
+result = await adapter.negotiate(
+    request, options,
+    owner_context_from_user(requester),
+    owner_context_from_user(invitee),
+)
+# if result.status == "agreed": create Proposal from result.proposal + location
 ```
 
 ## Configure
-
-In `.env` (see `.env.example`):
 
 ```env
 AGENT_ADAPTER=local
 OLLAMA_HOST=http://127.0.0.1:11434
 OLLAMA_MODEL=llama3.2:1b
 AGENT_LOCAL_FALLBACK=1
+AGENT_MAX_ROUNDS=3
 ```
 
-`AGENT_LOCAL_FALLBACK=1` (default) returns the original candidate order if Ollama
-is down or returns unusable JSON. Set to `0` to raise instead.
-
-## Manual check
+## Demo
 
 ```sh
-.venv/bin/python - <<'PY'
-from datetime import datetime, timezone
-from backend.models import HangoutRequest, CandidateSlot
-from agent.local_llm import LocalLLM
-from agent.negotiate import rank_candidate_slots
-
-llm = LocalLLM()
-print("available:", llm.is_available(), "models:", llm.list_models())
-
-req = HangoutRequest(
-    id="req-demo",
-    requester_id="demo-zaynah",
-    invitee_id="demo-daniella",
-    start=datetime(2026, 10, 18, 10, 0, tzinfo=timezone.utc),
-    end=datetime(2026, 10, 18, 18, 0, tzinfo=timezone.utc),
-    allowed_activities=["coffee", "walk"],
-    allowed_durations=[30, 60],
-)
-slots = [
-    CandidateSlot(start=datetime(2026, 10, 18, 16, 0, tzinfo=timezone.utc),
-                  end=datetime(2026, 10, 18, 17, 0, tzinfo=timezone.utc)),
-    CandidateSlot(start=datetime(2026, 10, 18, 11, 0, tzinfo=timezone.utc),
-                  end=datetime(2026, 10, 18, 12, 0, tzinfo=timezone.utc)),
-]
-print(rank_candidate_slots(req, slots, llm=llm))
-PY
+# Terminal with Ollama up (e.g. ~/local_llm/scripts/phase1_chat.sh)
+.venv/bin/python -m agent.demo
 ```
 
 ## Privacy
 
-Do not send private preference notes, calendar event titles, or credentials to
-another user's agent context. This lane only sees the hangout request fields and
-candidate intervals the backend chooses to pass in.
+Each `decide_plan` call receives **one** owner's `soft_preference_note`.
+Orchestration never passes owner A's note into owner B's prompt.

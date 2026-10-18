@@ -68,7 +68,44 @@ Before accepting a proposal or creating an event, validate request choices, both
 
 CalendarAdapter remains the internal async get_busy/create_event interface. Calendar sharing grants only projected busy blocks, never Google event details or OAuth tokens.
 
-The existing AgentAdapter is a foundation passthrough mock. Its signature is NOT the final negotiation contract: it lacks per-user private context and activity-aware options. Before agent integration, the backend owner and agent developer must agree on input/output JSON for isolated owner context, CandidateOptions, chosen exact plan/counteroffer/no-match, bounded rounds, and failures. Do not treat the mock as implemented reasoning or replace the teammate's model. No model implementation or new inference transport is included in this branch.
+### Agent negotiation contract (agreed — agent lane)
+
+`AgentAdapter.negotiate(...)` is the integration point for
+`POST /hangout-requests/{id}/negotiate` (route still planned). Model output is
+advisory; backend must revalidate options, hard constraints, windows, busy time,
+and dual approvals before creating a Proposal.
+
+**Input (backend → agent)**
+
+- `HangoutRequest` (shared)
+- `CandidateOption[]` already filtered by backend (activities/durations attached)
+- `OwnerPrivateContext` for requester and invitee **separately** (never cross-send
+  `soft_preference_note` between owners)
+- `max_rounds` (default 3)
+
+`OwnerPrivateContext`: `{owner_id, preferred_activities, soft_preference_note,
+max_duration_minutes, timezone}` — see `agent/schemas.py`.
+
+**Per-agent turn output**
+
+```json
+{"decision":"propose|counter|accept|no_match","option_index":0,"activity":"coffee","duration_minutes":30,"reason":"..."}
+```
+
+Validated into an exact `ProposalCreate` (`activity` + duration-sized `CandidateSlot`
+starting at the chosen option's start). Agents cannot invent times outside options.
+
+**Orchestration output (`NegotiationResult`)**
+
+- `status`: `agreed` | `no_match` | `exhausted`
+- `proposal`: `ProposalCreate` when agreed (backend adds id/location/status)
+- `turns`: audit trail of each owner's `AgentDecision`
+- `reason`: short summary
+
+Two personal agents alternate: requester proposes, invitee reviews
+(accept/counter/no_match), counters flip the pending offer, stop on agree,
+no_match, or round budget. Set `AGENT_ADAPTER=local` for Ollama or `mock` for
+deterministic first-fit. Details: `agent/README.md`.
 
 ## Errors
 

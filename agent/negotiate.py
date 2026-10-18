@@ -1,19 +1,34 @@
-"""Advisory candidate ranking via the local offline LLM."""
+"""Advisory candidate ranking + personal-agent plan decisions via local LLM."""
 
 from __future__ import annotations
 
 import json
 import re
-from typing import Sequence
+from typing import Any, Literal, Sequence
 
-from backend.models import CandidateSlot, HangoutRequest
+from backend.models import CandidateOption, CandidateSlot, HangoutRequest
 
 from agent.config import prefer_local_fallback
 from agent.local_llm import ChatMessage, LocalLLM, LocalLLMError, LocalLLMUnavailable
-from agent.prompts import RANK_SYSTEM_PROMPT, build_rank_user_prompt
+from agent.plan_utils import (
+    build_decision_from_choice,
+    deterministic_fallback_plan,
+    option_payload,
+    private_payload,
+    request_payload,
+)
+from agent.prompts import (
+    DECIDE_SYSTEM_PROMPT,
+    RANK_SYSTEM_PROMPT,
+    build_decide_user_prompt,
+    build_rank_user_prompt,
+)
+from agent.schemas import AgentDecision, OwnerPrivateContext
 
 
 _JSON_OBJECT_RE = re.compile(r"\{.*\}", re.DOTALL)
+
+DecideMode = Literal["propose", "review"]
 
 
 def rank_candidate_slots(
@@ -37,16 +52,7 @@ def rank_candidate_slots(
     use_fallback = prefer_local_fallback() if fallback_on_error is None else fallback_on_error
 
     payload = {
-        "request": {
-            "id": request.id,
-            "requester_id": request.requester_id,
-            "invitee_id": request.invitee_id,
-            "start": request.start.isoformat(),
-            "end": request.end.isoformat(),
-            "allowed_activities": list(request.allowed_activities),
-            "allowed_durations": list(request.allowed_durations),
-            "location": request.location,
-        },
+        "request": request_payload(request),
         "candidates": [
             {
                 "index": index,
@@ -75,13 +81,85 @@ def rank_candidate_slots(
         raise
 
 
-def _parse_ranked_indices(raw: str, *, n: int) -> list[int]:
+def decide_plan(
+    request: HangoutRequest,
+    options: Sequence[CandidateOption],
+    ctx: OwnerPrivateContext,
+    *,
+    mode: DecideMode = "propose",
+    pending: AgentDecision | None = None,
+    llm: LocalLLM | None = None,
+    fallback_on_error: bool | None = None,
+) -> AgentDecision:
+    """Produce one personal-agent decision from CandidateOptions + private prefs.
+
+    Private ``soft_preference_note`` is only included for ``ctx.owner_id`` and
+    must never be forwarded to the other participant's agent by the caller.
+    """
+    opts = list(options)
+    use_fallback = prefer_local_fallback() if fallback_on_error is None else fallback_on_error
+
+    if not opts:
+        return AgentDecision(decision="no_match", reason="No candidate options")
+
+    if mode == "review" and pending is not None and pending.exact_plan() is not None:
+        # Fast-path: if pending plan is still valid for this owner, model may accept.
+        pass
+
+    client = llm or LocalLLM()
+    payload: dict[str, Any] = {
+        "mode": mode,
+        "owner": private_payload(ctx),
+        "request": request_payload(request),
+        "candidate_options": [option_payload(i, o) for i, o in enumerate(opts)],
+    }
+    if mode == "review" and pending is not None:
+        payload["pending_offer"] = {
+            "decision": pending.decision,
+            "activity": pending.activity,
+            "option_index": pending.option_index,
+            "start": pending.slot.start.isoformat() if pending.slot else None,
+            "end": pending.slot.end.isoformat() if pending.slot else None,
+            "reason": pending.reason,
+        }
+
+    try:
+        raw = client.chat(
+            [
+                ChatMessage(role="system", content=DECIDE_SYSTEM_PROMPT),
+                ChatMessage(role="user", content=build_decide_user_prompt(payload)),
+            ],
+            temperature=0.1,
+            num_predict=220,
+        )
+        return _parse_agent_decision(raw, request=request, options=opts, ctx=ctx, mode=mode)
+    except (LocalLLMUnavailable, LocalLLMError, ValueError):
+        if not use_fallback:
+            raise
+        if mode == "review" and pending is not None and pending.exact_plan() is not None:
+            # Conservative fallback: accept a still-valid pending offer.
+            try:
+                return build_decision_from_choice(
+                    decision="accept",
+                    option_index=pending.option_index or 0,
+                    activity=pending.activity,  # type: ignore[arg-type]
+                    duration_minutes=int(pending.slot.duration_minutes),  # type: ignore[union-attr]
+                    options=opts,
+                    request=request,
+                    ctx=ctx,
+                    reason="Fallback accept of pending offer",
+                )
+            except (ValueError, TypeError):
+                pass
+        return deterministic_fallback_plan(request, opts, ctx)
+
+
+def _extract_json_object(raw: str) -> dict[str, Any]:
     text = raw.strip()
     if text.startswith("```"):
         text = text.strip("`")
         if text.startswith("json"):
             text = text[4:].strip()
-
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
@@ -89,10 +167,13 @@ def _parse_ranked_indices(raw: str, *, n: int) -> list[int]:
         if not match:
             raise ValueError("Model response did not contain JSON")
         data = json.loads(match.group(0))
-
     if not isinstance(data, dict):
         raise ValueError("Model JSON must be an object")
+    return data
 
+
+def _parse_ranked_indices(raw: str, *, n: int) -> list[int]:
+    data = _extract_json_object(raw)
     indices = data.get("ranked_indices")
     if not isinstance(indices, list) or not indices:
         raise ValueError("ranked_indices missing or empty")
@@ -109,9 +190,53 @@ def _parse_ranked_indices(raw: str, *, n: int) -> list[int]:
         seen.add(item)
         cleaned.append(item)
 
-    # Append any omitted indices so we never drop slots unless the model
-    # explicitly returned a proper subset (already handled by seen).
     for index in range(n):
         if index not in seen:
             cleaned.append(index)
     return cleaned
+
+
+def _parse_agent_decision(
+    raw: str,
+    *,
+    request: HangoutRequest,
+    options: Sequence[CandidateOption],
+    ctx: OwnerPrivateContext,
+    mode: DecideMode,
+) -> AgentDecision:
+    data = _extract_json_object(raw)
+    decision = data.get("decision")
+    if decision not in {"propose", "counter", "accept", "no_match"}:
+        raise ValueError("invalid decision")
+
+    if decision == "no_match":
+        return AgentDecision(decision="no_match", reason=str(data.get("reason", ""))[:200])
+
+    if mode == "propose" and decision == "accept":
+        # Opening turn should propose/counter, not accept.
+        decision = "propose"
+    if mode == "review" and decision == "propose":
+        decision = "counter"
+
+    option_index = data.get("option_index")
+    activity = data.get("activity")
+    duration = data.get("duration_minutes")
+    reason = str(data.get("reason", ""))[:200]
+
+    if not isinstance(option_index, int) or isinstance(option_index, bool):
+        raise ValueError("option_index must be an integer")
+    if not isinstance(activity, str):
+        raise ValueError("activity required")
+    if not isinstance(duration, int) or isinstance(duration, bool):
+        raise ValueError("duration_minutes must be an integer")
+
+    return build_decision_from_choice(
+        decision=decision,
+        option_index=option_index,
+        activity=activity,  # type: ignore[arg-type]
+        duration_minutes=duration,
+        options=options,
+        request=request,
+        ctx=ctx,
+        reason=reason,
+    )
