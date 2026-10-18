@@ -42,13 +42,13 @@ CORS permits the default frontend origin, `http://localhost:5173`.
 - A local Ollama time-slot ranker, callable through its adapter but not yet wired
   to a negotiation route. See [agent setup](agent/README.md).
 
-The separate `/demo.html` frontend is an integration panel for profiles, friendships, and owner
-windows. Selected-friends controls, shared schedule browsing, requests, and
-candidates are not connected to this panel yet; use the API docs for those routes.
+The separate `/demo.html` frontend supports profiles, friendships, social windows,
+visibility-aware schedule browsing, requests, candidates, proposals, approvals,
+replanning, and simulated event creation.
 The default calendar dependency uses simulated busy intervals. Google OAuth and
 real event creation are not wired in this checkout. Separate agent contexts,
-negotiation, proposal/approval routes, and the calendar-sharing settings update
-route remain unfinished. Existing models/contracts describe these planned parts.
+negotiation, and the calendar-sharing settings update route remain unfinished.
+Proposal creation, approval routes, and mock calendar finalization are implemented.
 
 ## Demo data and database
 
@@ -88,11 +88,24 @@ After editing Pydantic models, regenerate JSON Schemas from the repository root:
 
 ### Backend demo walkthrough
 
-Open http://localhost:5173/demo.html with both servers running. Select a demo
-identity, establish any needed friendship, and use View a schedule to test
-visibility. Create a hangout request, find valid times, and select an exact plan
-to save a pending proposal. Copy its ID, switch to the other participant, and
-load it in View a saved proposal. Dates default to October 18, 2026 to match the
-fixtures; all inputs/display use the selected profile timezone. Calendar data
-is mocked. Sharing settings are read-only; agent calls, approvals, and calendar
-event creation are not available in this demo flow yet.
+Open http://localhost:5173/demo.html with both servers running. The demo opens on
+My plans: choose New hangout, enter constraints, then find available times and
+save an exact proposal. Submitting counts as your approval; the other participant
+can approve or decline. Select a request to review its options. Switch demo users and select the same request to respond as the other
+participant; no IDs need copying. Refresh this plan to see their latest response.
+People manages friendships; My availability manages social windows; Browse
+schedules tests visibility; My profile shows read-only settings. Sample dates
+are October 18, 2026, and times use the selected profile timezone. Calendars are
+mocked. Agent calls are not wired yet. After both approvals, Add to demo calendar runs a
+final availability check and saves a simulated event. Google is not connected. Decisions cannot be changed. Use Replan on an unscheduled agreed plan to close old
+options and request fresh approvals. Scheduled events cannot be replanned here.
+
+Declined options disappear from the demo. When both participants approve an
+option, only that agreed plan remains visible. History is retained in SQLite,
+and the backend blocks new options or competing decisions for settled requests.
+
+The demo preserves drafts and selected requests while navigating tabs for the same
+identity; switching identities clears that UI state. Request cards show status,
+time, and location. No-match results link to availability, friendships, and a revised
+search. Selected-friends windows can be created/edited using accepted friendships.
+Simulated scheduled events count as busy for both participants on later searches.

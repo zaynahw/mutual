@@ -3,8 +3,8 @@
 ## Responsibilities and flow
 
 The frontend calls the main FastAPI backend. The backend owns persistence,
-identity resolution, permissions, deterministic scheduling, and eventual proposal
-and approval state. Calendar and model integrations remain behind adapters.
+identity resolution, permissions, deterministic scheduling, proposals, approvals,
+and mock calendar finalization. Calendar and model integrations remain behind adapters.
 
 ```text
 React frontend -> FastAPI -> SQLite
@@ -24,9 +24,9 @@ Create hangout request -> load both profiles and permitted windows
                       -> check both calendars -> return valid CandidateOptions
 ```
 
-The remaining flow is agent evaluation/negotiation -> validated exact proposal ->
-two independent approvals -> final permission/conflict checks -> one calendar
-event. The current local agent ranks plain time intervals; it does not implement
+Manual exact proposals, two independent approvals, final permission/conflict
+checks, and mock calendar finalization are implemented. Agent evaluation/negotiation
+and real Google event creation remain integration work. The current local agent ranks plain time intervals; it does not implement
 separate personal contexts, activity/duration compromises, or a no-match exchange.
 Its default failure fallback returns the original slot order; disable fallback
 when proving real inference. Coordinate agent changes with its owner.
@@ -94,8 +94,12 @@ candidates and requires the activity, exact duration, and entire proposed interv
 to fit one valid option, then assigns an ID and inherits the request location.
 No partial proposal is saved on invalid recommendations or calendar failure.
 Participant routes enforce request ownership before creation and proposal ownership
-before retrieval. Approvals and recommendation-source labeling are not implemented
-yet; retrieval returns an empty approvals list. Final
+before retrieval. Approval decisions are stored in a separate table with a unique
+proposal/user pair. A write transaction rechecks participation, records a server
+timestamp, and updates proposal status together. One approval stays pending; two
+approve; either decline closes the plan. Identical retries preserve the timestamp;
+changes and new decisions on closed plans return conflicts. Recommendation-source
+labeling is not implemented yet. Final
 calendar creation must recheck availability; saving a proposal is not a reservation.
 
 Internal repository functions are not authorization boundaries. User records
@@ -114,7 +118,7 @@ Owner access is allowed. Other viewers qualify through community membership,
 current accepted friendship, or both explicit selection and current friendship.
 Removing a friend revokes friend-based access even if an old window retains their
 ID; community access can still apply. Selected-friend writes reject self and
-non-friends. All community membership is simulated for the demo.
+non-friends; the demo picker preserves saved selections and flags revoked friends. All community membership is simulated for the demo.
 
 Browsing hides matching-only windows from other people, clips both sources to the
 query range, and returns public projections. calendar_busy=null means not shared;
@@ -157,7 +161,44 @@ The demo window form uses the selected user's timezone, not the browser's. It
 rejects DST gaps/repeated times, resets on identity change, and confirms deletion.
 Window deletion has no undo. The friendship panel confirms removal and supports
 refreshing state from another tab. Cancelling a browser request does not undo an
-already-received backend write. Selected-friends controls and new schedule/request
-routes still need wiring into the final frontend design. The separate demo now
+already-received backend write. The product frontend still needs integration with these endpoints. The separate demo now
 supports schedule browsing, request creation/listing, candidate generation, exact
-manual proposal creation, and participant-only proposal lookup by ID.
+manual proposal creation, participant-only proposal listing per request and approval decisions. The demo
+opens on My plans, with inline request selection, candidates, and proposal review.
+People, My availability, Browse schedules, and My profile are separate sections.
+
+For each request, proposal insertion and approval writes check for an existing
+approved/scheduled option in the same serialized write transaction. A settled
+request rejects new proposals and competing decisions. Identical retries on the
+winning proposal remain safe. History records are retained; the demo hides
+declined options and all alternatives once a plan is agreed. Refreshing decisions
+also reloads sibling options to detect agreement from another tab.
+
+## Calendar finalization
+
+backend/calendar_events.py stores per-proposal creation claims, bound client keys,
+and event IDs. backend/services/calendar_events.py performs fresh candidate
+validation and adapter creation; the proposal route enforces participant identity.
+Claims serialize attempts without holding a SQLite transaction across awaits.
+The completion transaction saves the event result and scheduled proposal together.
+Failures release the claim for retry; a crashed claim expires after five minutes.
+Provider keys derive from the immutable proposal ID, so different client keys and
+restarts still address the same external write. A real adapter must implement
+provider-side deduplication and reconcile ambiguous success/own-event busy blocks.
+The current mock simulates creation, and the demo labels it accordingly.
+
+## Demo navigation and recovery
+
+The demo keeps same-user tab panels mounted to preserve drafts, exact candidate
+choices, and selection. Identity changes unmount them before showing another user.
+Overviews return only participant-owned requests and their proposal/approval summaries.
+Cards derive whose turn it is without exposing profiles or private matching reasons.
+New/revised request creation uses a separate view. Revisions create a new request.
+
+creation_receipts.py binds optional creation keys to actor, operation, and payload.
+Receipts, inserted records, and manual submitter approvals commit together. Agent
+service calls omit approved_by and never fabricate human approval. Replan serializes
+against calendar claims, closes pending/approved alternatives as cancelled, and leaves
+history intact. external_started prevents cancellation after an ambiguous provider
+write; only failures known to precede a provider write are immediately replan-safe.
+DemoCalendarAdapter overlays completed simulated bookings on fixture free/busy data.

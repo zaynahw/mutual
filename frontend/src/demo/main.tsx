@@ -7,7 +7,6 @@ import { SocialWindows } from './components/SocialWindows';
 import { Friendships } from './components/Friendships';
 import { ScheduleViewer } from './components/ScheduleViewer';
 import { HangoutRequests } from './components/HangoutRequests';
-import { ProposalViewer } from './components/ProposalViewer';
 
 const demoUsers = [
   { id: 'demo-zaynah', name: 'Zaynah' },
@@ -25,11 +24,14 @@ function App() {
   const [selectedId, setSelectedId] = React.useState(demoUsers[0].id);
   const [reload, setReload] = React.useState(0);
   const [panel, setPanel] = React.useState<PanelState>({ status: 'loading' });
+  const [tab, setTab] = React.useState<'plans' | 'people' | 'availability' | 'schedules' | 'profile'>('plans');
+  const [profileError, setProfileError] = React.useState('');
   const [health, setHealth] = React.useState('Not checked');
 
   React.useEffect(() => {
     const controller = new AbortController();
-    setPanel({ status: 'loading' });
+    setProfileError('');
+    setPanel(previous => previous.status === 'ready' && previous.selectedId === selectedId ? previous : { status: 'loading' });
     Promise.all([
       listUsers(selectedId, controller.signal),
       getMe(selectedId, controller.signal),
@@ -37,9 +39,11 @@ function App() {
       if (!controller.signal.aborted) setPanel({ status: 'ready', selectedId, users, me });
     }).catch((error: unknown) => {
       if (!controller.signal.aborted) {
-        setPanel({ status: 'error', message: error instanceof TypeError
+        const message = error instanceof TypeError
           ? 'Cannot reach the backend. Start it on port 8000 and check the API URL.'
-          : error instanceof Error ? error.message : 'Could not load demo data.' });
+          : error instanceof Error ? error.message : 'Could not load demo data.';
+        setProfileError(message);
+        setPanel(previous => previous.status === 'ready' && previous.selectedId === selectedId ? previous : { status: 'error', message });
       }
     });
     return () => controller.abort();
@@ -54,10 +58,10 @@ function App() {
   return <main className="min-h-screen bg-stone-50 px-5 py-10 text-stone-900 sm:px-10">
     <div className="mx-auto max-w-5xl space-y-8">
       <header className="space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-widest text-teal-700">Demo integration panel</p>
+        <p className="text-sm font-semibold uppercase tracking-widest text-teal-700">Mutual · Backend demo</p>
         <h1 className="text-5xl font-bold">Mutual</h1>
-        <p>Two personal agents. A plan that feels comfortable for both people.</p>
-        <p className="max-w-2xl text-sm text-stone-600">Switch between fictional demo profiles to explore saved settings. This switcher is for testing and does not sign you into a real account.</p>
+        <p>Make a plan, choose a time, and get both people’s approval.</p>
+        <p className="max-w-2xl text-sm text-stone-600">Switch demo users to try both sides of a hangout. Use People and My availability to set up who can match with you.</p>
       </header>
 
       <section aria-label="Demo controls" className="flex flex-wrap items-end gap-4 rounded-xl border border-stone-200 bg-white p-5">
@@ -72,9 +76,14 @@ function App() {
         <p role="status" className="py-3 text-sm">Backend: {health}</p>
       </section>
 
+      <nav aria-label="Demo sections" className="flex flex-wrap gap-2 border-b border-stone-200 pb-4">
+        {([['plans', 'My plans'], ['people', 'People'], ['availability', 'My availability'], ['schedules', 'Browse schedules'], ['profile', 'My profile']] as const).map(([value, label]) =>
+          <button key={value} aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)} className={`rounded-lg px-4 py-3 font-medium ${tab === value ? 'bg-teal-800 text-white' : 'bg-white text-stone-700'}`}>{label}</button>)}
+      </nav>
       {(panel.status === 'loading' || (panel.status === 'ready' && panel.selectedId !== selectedId)) && <p role="status">Loading profiles…</p>}
+      {profileError && panel.status === 'ready' && <p role="alert" className="text-red-800">{profileError} Your current draft is preserved.</p>}
       {panel.status === 'error' && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800">{panel.message}</p>}
-      {panel.status === 'ready' && panel.selectedId === selectedId && <div className="grid gap-6 md:grid-cols-2">
+      {panel.status === 'ready' && panel.selectedId === selectedId && tab === 'profile' && <div className="grid gap-6 md:grid-cols-2">
         <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-6">
           <h2 className="text-2xl font-semibold">People</h2>
           <p className="text-sm text-stone-600">Public profiles only. Private preferences and settings are excluded.</p>
@@ -99,13 +108,10 @@ function App() {
           </dl>
         </section>
       </div>}
-      {panel.status === 'ready' && panel.selectedId === selectedId && <Friendships key={`friendships-${selectedId}`} currentUser={panel.me} users={panel.users} />}
-      {panel.status === 'ready' && panel.selectedId === selectedId && <SocialWindows key={`windows-${selectedId}`} user={panel.me} />}
-      {panel.status === 'ready' && panel.selectedId === selectedId && <React.Fragment key={`flow-${selectedId}`}>
-        <ScheduleViewer user={panel.me} users={panel.users} />
-        <HangoutRequests user={panel.me} users={panel.users} />
-        <ProposalViewer user={panel.me} />
-      </React.Fragment>}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'people'}><Friendships key={`friendships-${selectedId}`} currentUser={panel.me} users={panel.users} active={tab === 'people'} /></div>}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'availability'}><SocialWindows key={`windows-${selectedId}`} user={panel.me} users={panel.users} active={tab === 'availability'} /></div>}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'schedules'}><ScheduleViewer key={`schedule-${selectedId}`} user={panel.me} users={panel.users} /></div>}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'plans'}><HangoutRequests key={`plans-${selectedId}`} user={panel.me} users={panel.users} active={tab === 'plans'} onNavigate={setTab} /></div>}
     </div>
   </main>;
 }

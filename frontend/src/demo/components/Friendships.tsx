@@ -4,11 +4,12 @@ import type { FriendRequest, PublicUser } from '../lib/api';
 import { activeRequestFor } from '../lib/friendships';
 
 interface Props {
+  active: boolean;
   currentUser: PublicUser;
   users: PublicUser[];
 }
 
-export function Friendships({ currentUser, users }: Props) {
+export function Friendships({ currentUser, users, active }: Props) {
   const [requests, setRequests] = React.useState<FriendRequest[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
@@ -21,6 +22,7 @@ export function Friendships({ currentUser, users }: Props) {
 
   React.useEffect(() => () => pendingAction.current?.abort(), []);
   React.useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     setLoading(true);
     setLoadError('');
@@ -32,7 +34,7 @@ export function Friendships({ currentUser, users }: Props) {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [currentUser.id, reload]);
+  }, [currentUser.id, reload, active]);
 
   async function act(
     action: (signal: AbortSignal) => Promise<FriendRequest>, message: string,
@@ -94,7 +96,7 @@ export function Friendships({ currentUser, users }: Props) {
         </div>
         <button disabled={working || loading} onClick={() => setReload(value => value + 1)} className="underline disabled:opacity-50">Refresh requests</button>
       </div>
-      <p className="text-sm text-stone-500">Accepted friendships are saved. Shared schedule browsing and selected-friends window controls are coming next.</p>
+      <p className="text-sm text-stone-500">Accepted friendships are saved. Friend-only schedules and selected-friends windows use your current accepted friendships.</p>
       {loading && <p role="status">Loading friendships…</p>}
       {loadError && <p role="alert" className="text-red-700">{loadError}</p>}
       {actionError && <p role="alert" className="text-red-700">{actionError}</p>}

@@ -1,10 +1,12 @@
 import React from 'react';
-import { createHangout, createProposal, getCandidates, listHangouts } from '../lib/api';
-import type { Activity, CandidateOption, Duration, HangoutRequest, Proposal, PublicUser, User } from '../lib/api';
+import { createProposal, getCandidates, listOverviews } from '../lib/api';
+import type { Activity, CandidateOption, Duration, HangoutOverview, HangoutRequest, ProposalResponse, PublicUser, User } from '../lib/api';
+import { visibleProposals, planStatus } from '../lib/proposals';
+import { ProposalViewer } from './ProposalViewer';
+import { HangoutForm } from './HangoutForm';
+import type { HangoutDraft } from './HangoutForm';
+import { dateTime } from '../lib/display';
 import { isoToZonedInput, zonedInputToISO } from '../lib/time';
-
-const activities: Activity[] = ['coffee', 'meal', 'walk', 'study', 'concert'];
-const durations: Duration[] = [30, 60, 90, 120];
 
 function CandidateChoice({ option, timezone, disabled, save }: {
   option: CandidateOption; timezone: string; disabled: boolean;
@@ -14,105 +16,152 @@ function CandidateChoice({ option, timezone, disabled, save }: {
   const [duration, setDuration] = React.useState(option.eligible_durations[0]);
   const [start, setStart] = React.useState(isoToZonedInput(option.slot.start, timezone));
   return <form className="demo-choice demo-form" onSubmit={e => { e.preventDefault(); save(activity, start, duration); }}>
-    <p className="w-full">Available {isoToZonedInput(option.slot.start, timezone)} – {isoToZonedInput(option.slot.end, timezone)}</p>
+    <p className="w-full">Available {dateTime(option.slot.start, timezone)} – {dateTime(option.slot.end, timezone)}</p>
     <label>Activity<select value={activity} disabled={disabled} onChange={e => setActivity(e.target.value as Activity)}>{option.eligible_activities.map(a => <option key={a}>{a}</option>)}</select></label>
     <label>Exact start<input required type="datetime-local" value={start} disabled={disabled} onChange={e => setStart(e.target.value)} /></label>
     <label>Minutes<select value={duration} disabled={disabled} onChange={e => setDuration(Number(e.target.value) as Duration)}>{option.eligible_durations.map(d => <option key={d}>{d}</option>)}</select></label>
-    <button disabled={disabled}>Save pending proposal</button>
+    <button disabled={disabled}>Propose and approve this plan</button>
   </form>;
 }
 
-export function HangoutRequests({ user, users }: { user: User; users: PublicUser[] }) {
-  const [invitee, setInvitee] = React.useState(users.find(p => p.id !== user.id)?.id || '');
-  const [start, setStart] = React.useState('2026-10-18T14:00');
-  const [end, setEnd] = React.useState('2026-10-18T20:00');
-  const [chosen, setChosen] = React.useState<Activity[]>(['coffee']);
-  const [minutes, setMinutes] = React.useState<Duration[]>([30, 60]);
-  const [location, setLocation] = React.useState('');
-  const [requests, setRequests] = React.useState<HangoutRequest[]>([]);
+export function HangoutRequests({ user, users, active, onNavigate }: {
+  user: User; users: PublicUser[]; active: boolean;
+  onNavigate: (section: 'people' | 'availability') => void;
+}) {
+  const initialDraft = (): HangoutDraft => ({ invitee: users.find(p => p.id !== user.id)?.id || '', start:'2026-10-18T14:00', end:'2026-10-18T20:00', activities:['coffee'], durations:[30,60], location:'' });
+  const [draft, setDraft] = React.useState<HangoutDraft>(initialDraft);
+  const [overviews, setOverviews] = React.useState<HangoutOverview[]>([]);
   const [options, setOptions] = React.useState<{ requestId: string; items: CandidateOption[] } | null>(null);
-  const [proposal, setProposal] = React.useState<Proposal | null>(null);
+  const [proposalId, setProposalId] = React.useState<string | null>(null);
+  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [showForm, setShowForm] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [notice, setNotice] = React.useState('');
   const [error, setError] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const pending = React.useRef<AbortController | null>(null);
-  React.useEffect(() => {
-    const controller = new AbortController(); pending.current = controller;
-    listHangouts(user.id, controller.signal).then(data => {
-      if (!controller.signal.aborted) setRequests(data);
-    }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Could not load requests.'); });
-    return () => { controller.abort(); pending.current?.abort(); };
+  const readPending = React.useRef<AbortController | null>(null);
+  const refresh = React.useCallback(async () => {
+    readPending.current?.abort();
+    const controller = new AbortController(); readPending.current = controller;
+    setLoading(true);
+    try {
+      const data = await listOverviews(user.id, controller.signal);
+      if (!controller.signal.aborted) {
+        setOverviews(data);
+        setSelectedId(id => data.some(item => item.request.id === id) ? id : null);
+        setError('');
+      }
+    } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Could not load plans.'); }
+    finally { if (!controller.signal.aborted) setLoading(false); }
   }, [user.id]);
-
+  React.useEffect(() => { if (active) void refresh(); }, [active, refresh]);
+  React.useEffect(() => () => { pending.current?.abort(); readPending.current?.abort(); }, []);
   async function run(action: (signal: AbortSignal) => Promise<void>) {
-    pending.current?.abort();
+    if (pending.current) return;
     const controller = new AbortController(); pending.current = controller;
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setNotice('');
     try { await action(controller.signal); }
-    catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Request failed.'); }
-    finally { if (!controller.signal.aborted) setBusy(false); }
+    catch (e) { if (!controller.signal.aborted) setError(e instanceof TypeError ? 'Connection lost. Refresh this request before retrying; the same input can be retried safely.' : e instanceof Error ? e.message : 'Request failed.'); }
+    finally { if (!controller.signal.aborted) { pending.current = null; setBusy(false); } }
   }
+  const selected = overviews.find(item => item.request.id === selectedId);
+  const visible = visibleProposals(selected?.proposals.map(item => item.proposal) || []);
+  const agreed = visible.some(plan => plan.status === 'approved' || plan.status === 'scheduled');
+  const displayedId = visible.find(plan => plan.id === proposalId)?.id || visible[0]?.id;
+  const displayed = selected?.proposals.find(item => item.proposal.id === displayedId);
   const name = (id: string) => users.find(person => person.id === id)?.display_name || id;
+  const other = (request: HangoutRequest) => request.requester_id === user.id ? request.invitee_id : request.requester_id;
+  function updateProposal(result: ProposalResponse) {
+    setOverviews(old => old.map(item => item.request.id === result.proposal.request_id ? { ...item, proposals:item.proposals.map(response => response.proposal.id === result.proposal.id ? result : result.proposal.status === 'cancelled' && ['pending','approved'].includes(response.proposal.status) ? {...response,proposal:{...response.proposal,status:'cancelled' as const}} : response) } : item));
+    if (result.proposal.status === 'declined') setNotice('Plan declined. Other available options remain below.');
+    if (result.proposal.status === 'cancelled') { setOptions(null); setNotice('Old options closed. Find another time, or revise the search. Fresh approvals will be required.'); void refresh(); }
+    if (result.proposal.status === 'approved') { setOptions(null); setNotice('You both agreed. Other options are hidden.'); }
+    if (result.proposal.status === 'scheduled') { setOptions(null); setNotice('Scheduled in the demo calendar. This time now counts as busy for both participants.'); }
+  }
+  function findTimes(request: HangoutRequest) {
+    setOptions(null);
+    void run(async signal => {
+      const items = await getCandidates(user.id, request.id, signal);
+      if (!signal.aborted) setOptions({requestId:request.id, items});
+    });
+  }
+  function revise(request: HangoutRequest) {
+    setDraft({invitee:other(request), start:isoToZonedInput(request.start,user.timezone), end:isoToZonedInput(request.end,user.timezone), activities:request.allowed_activities, durations:request.allowed_durations, location:request.location || ''});
+    setNotice(''); setShowForm(true);
+  }
+  if (showForm) return <HangoutForm user={user} users={users} draft={draft} setDraft={setDraft} onBack={() => setShowForm(false)} onSaved={request => {
+    setOverviews(old => [...old.filter(item => item.request.id !== request.id), {request,proposals:[]}]);
+    setSelectedId(request.id); setProposalId(null); setShowForm(false); setDraft(initialDraft());
+    findTimes(request);
+  }} />;
   return <section className="demo-panel">
-    <h2>Hangout requests and candidates</h2>
-    <p>Times use {user.timezone}. This is manual testing; no agent is invoked. Candidates require permitted social windows and compatible constraints.</p>
-    <form className="demo-form" onSubmit={e => {
-      e.preventDefault();
-      void run(async signal => {
-        const created = await createHangout(user.id, {
-          invitee_id: invitee, start: zonedInputToISO(start, user.timezone), end: zonedInputToISO(end, user.timezone),
-          allowed_activities: chosen, allowed_durations: minutes, location: location.trim() || null,
-        }, signal);
-        if (!signal.aborted) { setRequests(old => [...old, created]); setOptions(null); setProposal(null); }
-      });
-    }}>
-      <label>Invite<select value={invitee} disabled={busy} onChange={e => setInvitee(e.target.value)}>{users.filter(p => p.id !== user.id).map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}</select></label>
-      <label>From<input required type="datetime-local" value={start} disabled={busy} onChange={e => setStart(e.target.value)} /></label>
-      <label>Until<input required type="datetime-local" value={end} disabled={busy} onChange={e => setEnd(e.target.value)} /></label>
-      <fieldset disabled={busy}><legend>Activities</legend>{activities.map(a => <label key={a}><input type="checkbox" checked={chosen.includes(a)} onChange={e => setChosen(old => e.target.checked ? [...old, a] : old.filter(v => v !== a))} />{a}</label>)}</fieldset>
-      <fieldset disabled={busy}><legend>Durations (minutes)</legend>{durations.map(d => <label key={d}><input type="checkbox" checked={minutes.includes(d)} onChange={e => setMinutes(old => e.target.checked ? [...old, d] : old.filter(v => v !== d))} />{d}</label>)}</fieldset>
-      <label>Location (optional)<input maxLength={200} value={location} disabled={busy} onChange={e => setLocation(e.target.value)} /></label>
-      <button disabled={busy || !invitee || !chosen.length || !minutes.length}>Create request</button>
-    </form>
-    <button disabled={busy} onClick={() => void run(async signal => {
-      const data = await listHangouts(user.id, signal);
-      if (!signal.aborted) { setRequests(data); setOptions(null); setProposal(null); }
-    })}>Refresh my requests</button>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div><h2>My plans</h2><p className="text-sm text-stone-600">Choose a request to continue. Status shows whose turn it is.</p></div>
+      <div className="flex gap-2">
+        <button className="demo-secondary" disabled={busy || loading} onClick={() => void refresh()}>Refresh plans</button>
+        <button disabled={busy || loading} onClick={() => {setNotice('');setShowForm(true);}}>New hangout</button>
+      </div>
+    </div>
+    <p className="text-sm text-stone-600">Mock calendars · manual plan selection · times in {user.timezone}</p>
+    {loading && <p role="status">Refreshing plans…</p>}
     {busy && <p role="status">Working…</p>}
     {error && <p role="alert">{error}</p>}
-    {requests.length === 0 && <p>No requests yet.</p>}
-    {requests.map(request => <div className="demo-choice" key={request.id}>
-      <h3>{name(request.requester_id)} → {name(request.invitee_id)}</h3>
-      <p>{isoToZonedInput(request.start, user.timezone)} – {isoToZonedInput(request.end, user.timezone)}</p>
-      <p>{request.allowed_activities.join(', ')} · {request.allowed_durations.join(', ')} minutes · {request.location || 'Location to be arranged'}</p>
-      <p className="break-all text-sm">{request.id}</p>
-      <button disabled={busy} onClick={() => {
-        setOptions(null); setProposal(null);
-        void run(async signal => {
-          const data = await getCandidates(user.id, request.id, signal);
-          if (!signal.aborted) setOptions({ requestId: request.id, items: data });
-        });
-      }}>Find valid times</button>
-    </div>)}
-    {options && <div className="space-y-3">
-      <h3>Candidates for {options.requestId}</h3>
-      {options.items.length === 0 && <p>No compatible times. Check windows, audiences, accepted friendships, activities, and calendars.</p>}
-      {options.items.map((option, i) => <CandidateChoice key={`${options.requestId}-${i}-${option.slot.start}`} option={option} timezone={user.timezone} disabled={busy} save={(activity, wallStart, duration) => {
-        setProposal(null);
-        void run(async signal => {
-          const exactStart = zonedInputToISO(wallStart, user.timezone);
-          const exactEnd = new Date(Date.parse(exactStart) + duration * 60_000).toISOString();
-          if (Date.parse(exactStart) < Date.parse(option.slot.start) || Date.parse(exactEnd) > Date.parse(option.slot.end)) throw new Error('The entire plan must fit inside this candidate interval.');
-          const saved = await createProposal(user.id, options.requestId, { activity, slot: { start: exactStart, end: exactEnd } }, signal);
-          if (!signal.aborted) setProposal(saved);
-        });
-      }} />)}
-    </div>}
-    {proposal && <div role="status" className="demo-choice">
-      <h3>Saved pending proposal</h3>
-      <p>{proposal.activity} · {isoToZonedInput(proposal.slot.start, user.timezone)} – {isoToZonedInput(proposal.slot.end, user.timezone)}</p>
-      <p>Location: {proposal.location || 'To be arranged'}</p>
-      <label>Copy this ID to view as either participant<input readOnly value={proposal.id} onFocus={e => e.target.select()} /></label>
-      <p>Availability was rechecked before saving. This does not reserve the time or create an event.</p>
-    </div>}
+    {notice && <p role="status" className="rounded-lg bg-teal-50 p-3">{notice}</p>}
+    {!loading && !error && overviews.length === 0 && <p>No plans yet. Choose New hangout to start.</p>}
+    <div className="grid items-start gap-5 lg:grid-cols-[280px_1fr]">
+      <div className="space-y-2" aria-label="Your hangout requests">
+        {overviews.map(item => {
+          const plans = visibleProposals(item.proposals.map(response => response.proposal));
+          const focus = plans.find(plan => plan.status === 'approved' || plan.status === 'scheduled') || plans[0];
+          return <button key={item.request.id} className={`demo-request ${selectedId === item.request.id ? 'demo-request-active' : ''}`} disabled={busy} aria-pressed={selectedId === item.request.id} onClick={() => {setSelectedId(item.request.id);setProposalId(null);setNotice('');setError('');}}>
+            <span className="block font-semibold">{name(other(item.request))} · {focus?.activity || item.request.allowed_activities.join(', ')}</span>
+            <span className="block text-sm">{focus ? dateTime(focus.slot.start,user.timezone) : dateTime(item.request.start,user.timezone) + ' – ' + dateTime(item.request.end,user.timezone)}</span>
+            <span className="block text-sm">{item.request.location || 'Location to be arranged'} · {item.request.requester_id === user.id ? 'You invited them' : 'They invited you'}</span>
+            <span className="mt-2 block text-sm font-semibold text-teal-800">{planStatus(item.proposals,user.id)}</span>
+            <span className="block text-xs text-stone-500">Request {item.request.id.slice(-6)}</span>
+          </button>;
+        })}
+      </div>
+      <div className="space-y-5">
+        {!selected && overviews.length > 0 && <p className="demo-choice">Choose a request to see its options and next step.</p>}
+        {selected && <>
+          <div className="demo-choice space-y-2">
+            <h3>You and {name(other(selected.request))}</h3>
+            <p>Search: {dateTime(selected.request.start,user.timezone)} – {dateTime(selected.request.end,user.timezone)}</p>
+            <p>{selected.request.allowed_activities.join(', ')} · {selected.request.allowed_durations.join(', ')} minutes</p>
+            {!agreed && <button className="demo-secondary" disabled={busy} onClick={() => revise(selected.request)}>Revise search in a new request</button>}
+          </div>
+          {visible.length > 0 && <div className="space-y-3">
+            <h3>{agreed ? 'Your agreed plan' : 'Choose a proposed option'}</h3>
+            {visible.map(item => <button className="demo-secondary mr-2 mb-2" aria-pressed={displayedId === item.id} key={item.id} disabled={busy} onClick={() => setProposalId(item.id)}>{item.activity} · {dateTime(item.slot.start,user.timezone)} · {(Date.parse(item.slot.end)-Date.parse(item.slot.start))/60_000} min</button>)}
+            {displayed && <ProposalViewer key={displayed.proposal.id} user={user} users={users} value={displayed} onChange={updateProposal} onRefresh={() => void refresh()} />}
+          </div>}
+          {!agreed && <div className="space-y-3">
+            {!visible.length && <p>No active proposal yet. Find times below or revise your search.</p>}
+            <button disabled={busy || loading} onClick={() => findTimes(selected.request)}>{visible.length ? 'Find another option' : 'Find available times'}</button>
+          </div>}
+          {options?.requestId === selected.request.id && !agreed && (options.items.length === 0 ? <div className="demo-choice space-y-3">
+            <h3>No compatible times found</h3><p>Both people need overlapping social availability with compatible activities and duration. Calendar conflicts and visibility also apply. Private reasons are not disclosed.</p>
+            <div className="flex flex-wrap gap-2">
+              <button className="demo-secondary" onClick={() => onNavigate('availability')}>Check my availability</button>
+              <button className="demo-secondary" onClick={() => onNavigate('people')}>Check friendships</button>
+              <button className="demo-secondary" onClick={() => revise(selected.request)}>Try different constraints</button>
+            </div>
+          </div> : <div className="space-y-3">
+            <h3>Choose an exact plan</h3><p>Submitting counts as your approval. The other person still needs to approve.</p>
+            {options.items.map(option => <CandidateChoice key={JSON.stringify(option)} option={option} timezone={user.timezone} disabled={busy} save={(activity, wallStart, duration) => {
+              void run(async signal => {
+                const start = zonedInputToISO(wallStart,user.timezone);
+                const end = new Date(Date.parse(start)+duration*60_000).toISOString();
+                if (Date.parse(start)<Date.parse(option.slot.start) || Date.parse(end)>Date.parse(option.slot.end)) throw new Error('The whole plan must fit inside this available interval.');
+                const saved = await createProposal(user.id,selected.request.id,{activity,slot:{start,end}},signal);
+                if (!signal.aborted) {setProposalId(saved.id);setOptions(null);setNotice('Proposed and approved by you. Switch demo users to respond as the other person.');await refresh();}
+              });
+            }} />)}
+          </div>)}
+        </>}
+      </div>
+    </div>
   </section>;
 }

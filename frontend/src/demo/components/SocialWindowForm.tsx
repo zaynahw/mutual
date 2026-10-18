@@ -1,10 +1,13 @@
 import type { Dispatch, FormEvent, SetStateAction } from 'react';
-import type { Activity, SocialWindowInput } from '../lib/api';
+import type { Activity, SocialWindowInput, PublicUser } from '../lib/api';
 
 const activities: Activity[] = ['coffee', 'meal', 'walk', 'study', 'concert'];
 type Setter<T> = Dispatch<SetStateAction<T>>;
 
 interface Props {
+  friends: PublicUser[];
+  selectedFriends: string[];
+  setSelectedFriends: Setter<string[]>;
   editingId: string | null;
   saving: boolean;
   start: string;
@@ -24,7 +27,7 @@ interface Props {
 }
 
 export function SocialWindowForm({
-  editingId, saving, start, end, chosen, audience, mode, error, notice,
+  friends, selectedFriends, setSelectedFriends, editingId, saving, start, end, chosen, audience, mode, error, notice,
   setStart, setEnd, setChosen, setAudience, setMode, onSubmit, onCancel,
 }: Props) {
   return (
@@ -62,15 +65,22 @@ export function SocialWindowForm({
             <option value="private">Private</option>
             <option value="community">Georgia Tech community</option>
             <option value="friends">Accepted friends</option>
-            <option value="selected_friends" disabled>Selected friends · coming after friendship setup</option>
+            <option value="selected_friends">Selected accepted friends</option>
           </select>
         </label>
-        <p className="text-sm text-stone-500">Audience is saved now. Other-user schedule browsing and friendship checks are not connected yet.</p>
+        <p className="text-sm text-stone-500">Private windows cannot match another person. Other audiences are checked by the backend for schedule browsing and matching.</p>
+        {audience === 'selected_friends' && <fieldset>
+          <legend>Choose accepted friends</legend>
+          {friends.length === 0 && <p>No accepted friends yet. Add one in People, then return here.</p>}
+          {friends.map(friend => <label className="flex items-center gap-2" key={friend.id}><input type="checkbox" checked={selectedFriends.includes(friend.id)} onChange={e => setSelectedFriends(old => e.target.checked ? [...old,friend.id] : old.filter(id => id !== friend.id))} />{friend.display_name}</label>)}
+          {selectedFriends.filter(id => !friends.some(friend => friend.id === id)).map(id => <label className="flex items-center gap-2 text-red-700" key={id}><input type="checkbox" checked onChange={() => setSelectedFriends(old => old.filter(value => value !== id))} />{id}: no longer an accepted friend; uncheck before saving</label>)}
+        </fieldset>}
+
         <label className="block">
           Sharing mode
           <select value={mode} onChange={event => setMode(event.target.value as typeof mode)} className="mt-1 block w-full rounded border border-stone-300 p-2">
             <option value="visible">Visible on shared schedule</option>
-            <option value="matching_only">Agent matching only</option>
+            <option value="matching_only">Use for matching; hide from shared schedule</option>
           </select>
         </label>
         <button type="submit" className="rounded-lg bg-teal-800 px-4 py-3 text-white disabled:opacity-60">

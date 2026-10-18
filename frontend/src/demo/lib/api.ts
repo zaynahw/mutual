@@ -1,3 +1,4 @@
+import { creationKey } from './creationKeys';
 // These types mirror backend/models.py. The API contract is the source of truth.
 export type Activity = 'coffee' | 'meal' | 'walk' | 'study' | 'concert';
 export interface PublicUser {
@@ -29,16 +30,18 @@ interface RequestOptions {
   signal?: AbortSignal;
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
+  idempotencyKey?: string;
 }
 
 // All requests share identity headers and error handling. Callers decode JSON
 // only when a response body is expected (DELETE returns an empty 204).
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
-  const { userId, signal, method = 'GET', body } = options;
+  const { userId, signal, method = 'GET', body, idempotencyKey } = options;
   const response = await fetch(`${baseUrl}${path}`, {
     method, signal,
     headers: {
       ...(userId ? { 'X-Demo-User-Id': userId } : {}),
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -155,7 +158,7 @@ export interface Proposal extends ProposalInput {
   id: string;
   request_id: string;
   location: string | null;
-  status: 'pending' | 'approved' | 'declined' | 'scheduled';
+  status: 'pending' | 'approved' | 'declined' | 'cancelled' | 'scheduled';
 }
 export interface ProposalResponse {
   proposal: Proposal;
@@ -165,11 +168,36 @@ export const getSchedule = (userId: string, ownerId: string, range: Interval, si
   requestJson<ScheduleResponse>(`/users/${encodeURIComponent(ownerId)}/schedule?${new URLSearchParams({ ...range })}`, { userId, signal });
 export const listHangouts = (userId: string, signal: AbortSignal) =>
   requestJson<HangoutRequest[]>('/hangout-requests', { userId, signal });
-export const createHangout = (userId: string, body: HangoutInput, signal: AbortSignal) =>
-  requestJson<HangoutRequest>('/hangout-requests', { userId, signal, method: 'POST', body });
+export async function createHangout(userId: string, body: HangoutInput, signal: AbortSignal) {
+  const retry = await creationKey(userId, 'hangout', body);
+  const result = await requestJson<HangoutRequest>('/hangout-requests', { userId, signal, method: 'POST', body, idempotencyKey: retry.key });
+  retry.confirmed();
+  return result;
+}
 export const getCandidates = (userId: string, id: string, signal: AbortSignal) =>
   requestJson<CandidateOption[]>(`/hangout-requests/${encodeURIComponent(id)}/candidates`, { userId, signal, method: 'POST' });
-export const createProposal = (userId: string, id: string, body: ProposalInput, signal: AbortSignal) =>
-  requestJson<Proposal>(`/hangout-requests/${encodeURIComponent(id)}/proposals`, { userId, signal, method: 'POST', body });
+export async function createProposal(userId: string, id: string, body: ProposalInput, signal: AbortSignal) {
+  const retry = await creationKey(userId, `proposal:${id}`, body);
+  const result = await requestJson<Proposal>(`/hangout-requests/${encodeURIComponent(id)}/proposals`, { userId, signal, method: 'POST', body, idempotencyKey: retry.key });
+  retry.confirmed();
+  return result;
+}
 export const getProposal = (userId: string, id: string, signal: AbortSignal) =>
   requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}`, { userId, signal });
+export const decideProposal = (userId: string, id: string, decision: 'approve' | 'decline', signal: AbortSignal) =>
+  requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}/approvals`, {
+    userId, signal, method: 'POST', body: { decision },
+  });
+export const listProposals = (userId: string, requestId: string, signal: AbortSignal) =>
+  requestJson<Proposal[]>(`/hangout-requests/${encodeURIComponent(requestId)}/proposals`, { userId, signal });
+
+export const scheduleProposal = (userId: string, id: string, key: string, signal: AbortSignal) =>
+  requestJson<{ proposal_id: string; event_id: string }>(`/proposals/${encodeURIComponent(id)}/calendar-event`, {
+    userId, signal, method: 'POST', idempotencyKey: key,
+  });
+
+export interface HangoutOverview { request: HangoutRequest; proposals: ProposalResponse[] }
+export const listOverviews = (userId: string, signal: AbortSignal) =>
+  requestJson<HangoutOverview[]>('/hangout-requests/overview', { userId, signal });
+export const replanProposal = (userId: string, id: string, signal: AbortSignal) =>
+  requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}/replan`, { userId, signal, method: 'POST' });
