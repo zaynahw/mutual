@@ -34,7 +34,7 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
   }, [userId, range.start, range.end, retry]);
 
   const blocks = [
-    ...(schedule?.busy_intervals || []).map((item) => ({ ...item, type: 'busy' })),
+    ...(schedule?.calendar_busy || []).map((item) => ({ ...item, type: 'busy' })),
     ...(schedule?.social_windows || []).map((item) => ({ ...item, type: 'social' })),
     ...(schedule?.proposals || []).map((item) => ({ ...item, type: 'proposal' })),
   ];
@@ -54,6 +54,7 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
         <button type="button" className="schedule-view__step" aria-label={`Next ${view}`} onClick={() => setAnchor((current) => shiftCalendarDate(current, navigationUnit, timezone))}>›</button>
       </div>
     </div>
+    {schedule?.calendar_busy === null && <p className="schedule-view__state" role="status">Calendar busy times are not shared with this viewer.</p>}
     {error ? <div className="schedule-view__state" role="alert"><p>{error}</p><button type="button" onClick={() => setRetry((attempt) => attempt + 1)}>Retry</button></div>
       : !schedule ? <p className="schedule-view__state" role="status">Loading schedule…</p>
         : visibleBlocks.length === 0 ? <p className="schedule-view__state" role="status">Nothing on the schedule for this {view}.</p>
@@ -75,7 +76,7 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
             const label = block.type === 'busy'
               ? 'Busy'
               : block.type === 'social'
-                ? `Available: ${(block.activity_types || []).join(', ')}`
+                ? `Available: ${(block.allowed_activities || []).join(', ')}`
                 : `${block.status === 'scheduled' ? 'Mutual hangout' : 'Suggested hangout'}: ${block.activity}, ${block.status}`;
             const proposalStyle = block.type === 'proposal'
               ? block.status === 'declined' || block.status === 'rejected'
@@ -104,7 +105,7 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
               title={label}
               onClick={() => onSelect?.(selectedItem)}
             >
-              {block.type === 'social' && <span>{(block.activity_types || []).join(', ')}</span>}
+              {block.type === 'social' && <span>{(block.allowed_activities || []).join(', ')}</span>}
               {block.type === 'proposal' && <span>{block.activity}</span>}
             </button>;
           })}
