@@ -50,10 +50,12 @@ when proving real inference. Coordinate agent changes with its owner.
 | `backend/repositories.py` | User and social-window persistence |
 | `backend/friendships.py` | Relationship creation, responses, removal, lookup |
 | `backend/hangouts.py` | Request insertion and retrieval |
+| `backend/proposals.py` | Pending proposal insertion and retrieval; no routes yet |
 | `backend/services/permissions.py` | Audience checks and selected-friend validation |
 | `backend/services/schedule.py` | Permission-filtered schedule projection |
 | `backend/services/scheduling.py` | Pure interval intersection and busy subtraction |
 | `backend/services/candidates.py` | Activity-aware candidate generation |
+| `backend/services/proposals.py` | Validate exact recommendations against fresh candidates and save pending plans |
 | `backend/services/calendar_adapter.py` | Calendar protocol, mock, Google stub |
 | `backend/services/agent_adapter.py` | Mock/local model adapter and factory |
 | `agent/` | Teammate-owned local Ollama client and slot ranking |
@@ -69,7 +71,7 @@ record invariants. It does not create tables or establish authorization. Backend
 logic checks relationships and caller permissions. SQLite enforces primary keys,
 foreign keys, and relevant checks/unique indexes.
 
-Users, social windows, and hangout requests store complete model JSON plus SQL
+Users, social windows, hangout requests, and proposals store complete model JSON plus SQL
 columns for IDs/ownership/participants. Save functions derive both from the same
 object; readers rebuild through Pydantic. SQL does not enforce JSON/column
 consistency. Friend requests store fields as separate columns for state queries.
@@ -84,6 +86,16 @@ table is needed. Removal retains the record with status removed and the original
 acceptance time. There is no separate removal timestamp. Only pending/accepted
 pairs block another request. Same decisions/removals are idempotent, and replaying
 an old removal cannot remove a newer accepted relationship.
+
+Proposal storage requires an existing hangout request, unique proposal IDs, and
+pending initial status. Multiple proposals per request are allowed. The local
+database has a proposals table and a validation service. The service regenerates
+candidates and requires the activity, exact duration, and entire proposed interval
+to fit one valid option, then assigns an ID and inherits the request location.
+No partial proposal is saved on invalid recommendations or calendar failure.
+Participant access routes, approvals, and recommendation-source labeling are not
+implemented yet. Caller authorization must precede calling the service, and final
+calendar creation must recheck availability; saving a proposal is not a reservation.
 
 Internal repository functions are not authorization boundaries. User records
 contain private settings. Routes must project PublicUser for the directory and
