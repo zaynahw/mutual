@@ -45,8 +45,7 @@ CORS permits the default frontend origin, `http://localhost:5173`.
 The separate `/demo.html` frontend supports profiles, friendships, social windows,
 visibility-aware schedule browsing, requests, candidates, proposals, approvals,
 replanning, and simulated event creation.
-The default calendar dependency uses simulated busy intervals. Google OAuth and
-real event creation are not wired in this checkout. The calendar-sharing settings update route remains unfinished.
+The default calendar dependency uses simulated busy intervals. Google OAuth and real event creation are available in Google mode; see calendar/README.md. The calendar-sharing settings update route remains unfinished.
 Negotiation uses isolated per-owner model contexts and still requires human approvals.
 Proposal creation, approval routes, and mock calendar finalization are implemented.
 
@@ -144,8 +143,7 @@ Open http://localhost:5173/ for the main interface, using the frontend teammate'
 branding and calendar design with the current FastAPI backend. Navigation includes
 Overview, Plan with someone, My plans, Friends, Availability, and My preferences.
 The demo identity picker lets you test each participant's approval. There is no
-production login; Google Calendar integration is not wired into this branch, so
-calendar creation remains explicitly simulated. “Join me” posts are a separate,
+production login; Calendar creation is simulated in demo mode; Google mode uses real account sessions and events. “Join me” posts are a separate,
 future feature; social windows currently grant matching availability.
 
 Shared API helpers live in `frontend/src/lib/`, reusable API-backed forms and
@@ -154,3 +152,19 @@ in `frontend/src/App.tsx`. `PlanWorkspace.tsx` coordinates negotiation and plan
 review. The imported calendar uses a small `frontend/src/api.js` compatibility
 adapter over the same typed API client, without its old frontend-only fixtures.
 The independent `/demo.html` testing panel reuses these helpers and components.
+
+### Real sign-in and Google calendars
+
+The real-account path is now implemented alongside demo mode. Follow
+[Google setup and the two-account walkthrough](calendar/README.md) to configure
+an OAuth web client, test users, the exact callback URL, and an encryption key.
+Start with `uvicorn backend.main:app --reload --env-file .env --port 8000` to load
+the configuration. Google mode replaces the demo picker with Continue with Google
+and Connect Google Calendar. Real-account consent testing requires your OAuth
+client credentials; automated tests use test doubles and do not access Google.
+
+To clear generated demo requests/proposals/approvals/bookings while preserving
+profiles, friendships and social windows, run:
+`.venv/bin/python -m backend.scripts.reset_demo_plans`.
+It makes an ignored SQLite backup first and refuses databases containing real
+Google accounts or an in-progress calendar write. It never deletes Google events.

@@ -76,7 +76,7 @@ All timestamps are timezone-aware ISO 8601. Intervals are half-open [start,end);
 |---|---|---|---|
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
 
-OAuth routes belong to the calendar lane and are not wired in this checkout.
+OAuth sign-in and calendar-consent routes are implemented separately in backend/routes/auth.py; see the real Google identity section below.
 No GET /users/{id}/friends endpoint exists; accepted relationships are available
 through the caller's friend-request history and the public user directory.
 
@@ -328,3 +328,34 @@ The requester's raw message and flexible period preferences go only to their own
 agent; shared requests and the other agent never receive the message. Manual
 requests default to origin=manual and retain the existing social-window behavior
 unless a user has opted into calendar-guided matching.
+
+### Real Google identity and calendar mode
+
+`MUTUAL_MODE=demo` accepts labeled demo headers only. `MUTUAL_MODE=google` rejects
+those headers and authenticates an opaque HttpOnly `mutual_session` cookie. All
+session-authenticated writes require Origin matching FRONTEND_URL. The frontend
+uses credentials-included requests; CORS permits only that explicit origin.
+Provider tokens never appear in browser JSON. Demo and real profiles are separated
+in the directory. UserId supports `demo-...` and `user-<32 lowercase hex>`;
+`is_demo` is boolean and community may be null (unverified membership).
+
+| Endpoint | Request | Response |
+| --- | --- | --- |
+| GET /auth/status | none | AuthStatus: mode, configured, authenticated, owner User or null, calendar_mode, calendar_connected |
+| POST /auth/google/start | AuthStart: purpose `login` or `calendar`, timezone | authorization_url; sets HttpOnly OAuth browser-binding cookie |
+| GET /calendar/oauth/callback | Google code/state or error | 303 to configured frontend with auth=success/failed |
+| POST /auth/logout | none; trusted Origin | 204; revokes session and clears cookie |
+
+Sign-in creates/reuses the account from a verified Google subject, never a client
+user_id. Calendar linking requires the current signed-in user and the same Google
+subject, with both free/busy and events scopes granted. OAuth state expires after
+ten minutes and is browser-bound and single use; code exchange uses PKCE. Google
+credentials and pending OAuth data are encrypted with MUTUAL_TOKEN_KEY in SQLite.
+Do not expose the local demo mode as authentication for real data.
+
+In Google mode calendar creation writes to the requester's primary calendar with
+both participants as attendees and sendUpdates=all. A stable Google event ID and
+validated recovery prevent duplicate writes. Free/busy errors fail closed. Local
+confirmed real bookings supplement Google's primary-calendar results so a pending
+invite cannot leave the invitee double-bookable in Mutual. No event titles or
+other event details are exposed through schedule responses.
