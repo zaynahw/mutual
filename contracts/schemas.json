@@ -36,7 +36,7 @@
       },
       "selected_friend_ids": {
         "items": {
-          "pattern": "^demo-[a-z0-9-]+$",
+          "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
           "type": "string"
         },
         "title": "Selected Friend Ids",
@@ -259,7 +259,7 @@
           },
           "selected_friend_ids": {
             "items": {
-              "pattern": "^demo-[a-z0-9-]+$",
+              "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
               "type": "string"
             },
             "title": "Selected Friend Ids",
@@ -404,7 +404,7 @@
           },
           "selected_friend_ids": {
             "items": {
-              "pattern": "^demo-[a-z0-9-]+$",
+              "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
               "type": "string"
             },
             "title": "Selected Friend Ids",
@@ -436,7 +436,7 @@
         "$ref": "#/$defs/HardConstraints"
       },
       "id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Id",
         "type": "string"
       },
@@ -447,16 +447,22 @@
         "type": "string"
       },
       "is_demo": {
-        "const": true,
         "default": true,
         "title": "Is Demo",
         "type": "boolean"
       },
       "community": {
-        "const": "georgia_tech",
+        "anyOf": [
+          {
+            "const": "georgia_tech",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": "georgia_tech",
-        "title": "Community",
-        "type": "string"
+        "title": "Community"
       }
     },
     "required": [
@@ -471,7 +477,7 @@
     "additionalProperties": false,
     "properties": {
       "id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Id",
         "type": "string"
       },
@@ -480,16 +486,22 @@
         "type": "string"
       },
       "is_demo": {
-        "const": true,
         "default": true,
         "title": "Is Demo",
         "type": "boolean"
       },
       "community": {
-        "const": "georgia_tech",
+        "anyOf": [
+          {
+            "const": "georgia_tech",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
         "default": "georgia_tech",
-        "title": "Community",
-        "type": "string"
+        "title": "Community"
       }
     },
     "required": [
@@ -503,7 +515,7 @@
     "additionalProperties": false,
     "properties": {
       "recipient_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Recipient Id",
         "type": "string"
       }
@@ -540,12 +552,12 @@
         "type": "string"
       },
       "sender_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Sender Id",
         "type": "string"
       },
       "recipient_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Recipient Id",
         "type": "string"
       },
@@ -606,7 +618,7 @@
           },
           "selected_friend_ids": {
             "items": {
-              "pattern": "^demo-[a-z0-9-]+$",
+              "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
               "type": "string"
             },
             "title": "Selected Friend Ids",
@@ -683,7 +695,7 @@
           },
           "selected_friend_ids": {
             "items": {
-              "pattern": "^demo-[a-z0-9-]+$",
+              "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
               "type": "string"
             },
             "title": "Selected Friend Ids",
@@ -738,7 +750,7 @@
         "type": "string"
       },
       "user_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "User Id",
         "type": "string"
       }
@@ -810,7 +822,7 @@
         "type": "string"
       },
       "user_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "User Id",
         "type": "string"
       }
@@ -850,7 +862,7 @@
         "additionalProperties": false,
         "properties": {
           "id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "Id",
             "type": "string"
           },
@@ -859,16 +871,22 @@
             "type": "string"
           },
           "is_demo": {
-            "const": true,
             "default": true,
             "title": "Is Demo",
             "type": "boolean"
           },
           "community": {
-            "const": "georgia_tech",
+            "anyOf": [
+              {
+                "const": "georgia_tech",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "default": "georgia_tech",
-            "title": "Community",
-            "type": "string"
+            "title": "Community"
           }
         },
         "required": [
@@ -1002,7 +1020,7 @@
         "type": "array"
       },
       "invitee_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Invitee Id",
         "type": "string"
       },
@@ -1101,7 +1119,7 @@
         "type": "array"
       },
       "invitee_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Invitee Id",
         "type": "string"
       },
@@ -1158,7 +1176,7 @@
         "type": "string"
       },
       "requester_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Requester Id",
         "type": "string"
       }
@@ -1440,7 +1458,7 @@
         "type": "string"
       },
       "user_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "User Id",
         "type": "string"
       },
@@ -1477,7 +1495,7 @@
             "type": "string"
           },
           "user_id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "User Id",
             "type": "string"
           },
@@ -1647,7 +1665,7 @@
             "type": "string"
           },
           "user_id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "User Id",
             "type": "string"
           },
@@ -1710,7 +1728,7 @@
             "type": "array"
           },
           "invitee_id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "Invitee Id",
             "type": "string"
           },
@@ -1767,7 +1785,7 @@
             "type": "string"
           },
           "requester_id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "Requester Id",
             "type": "string"
           }
@@ -1946,7 +1964,7 @@
     "additionalProperties": false,
     "properties": {
       "actor_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Actor Id",
         "type": "string"
       },
@@ -2097,7 +2115,7 @@
         "additionalProperties": false,
         "properties": {
           "actor_id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "Actor Id",
             "type": "string"
           },
@@ -2200,7 +2218,7 @@
     "additionalProperties": false,
     "properties": {
       "invitee_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Invitee Id",
         "type": "string"
       },
@@ -2442,7 +2460,7 @@
         "additionalProperties": false,
         "properties": {
           "invitee_id": {
-            "pattern": "^demo-[a-z0-9-]+$",
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
             "title": "Invitee Id",
             "type": "string"
           },
@@ -2593,7 +2611,7 @@
         "type": "string"
       },
       "owner_id": {
-        "pattern": "^demo-[a-z0-9-]+$",
+        "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
         "title": "Owner Id",
         "type": "string"
       },
@@ -2628,6 +2646,257 @@
       "result"
     ],
     "title": "HangoutIntentDraft",
+    "type": "object"
+  },
+  "AuthStart": {
+    "additionalProperties": false,
+    "properties": {
+      "purpose": {
+        "default": "login",
+        "enum": [
+          "login",
+          "calendar"
+        ],
+        "title": "Purpose",
+        "type": "string"
+      },
+      "timezone": {
+        "default": "America/New_York",
+        "title": "Timezone",
+        "type": "string"
+      }
+    },
+    "title": "AuthStart",
+    "type": "object"
+  },
+  "AuthStatus": {
+    "$defs": {
+      "HardConstraints": {
+        "additionalProperties": false,
+        "properties": {
+          "allowed_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Activities",
+            "type": "array"
+          },
+          "max_duration_minutes": {
+            "default": 120,
+            "maximum": 120,
+            "minimum": 30,
+            "multipleOf": 30,
+            "title": "Max Duration Minutes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "allowed_activities"
+        ],
+        "title": "HardConstraints",
+        "type": "object"
+      },
+      "MatchingSettings": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "default": "social_windows",
+            "enum": [
+              "social_windows",
+              "calendar_guided"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "start_hour": {
+            "default": 9,
+            "maximum": 23,
+            "minimum": 0,
+            "title": "Start Hour",
+            "type": "integer"
+          },
+          "end_hour": {
+            "default": 21,
+            "maximum": 24,
+            "minimum": 1,
+            "title": "End Hour",
+            "type": "integer"
+          }
+        },
+        "title": "MatchingSettings",
+        "type": "object"
+      },
+      "Preferences": {
+        "additionalProperties": false,
+        "properties": {
+          "preferred_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "title": "Preferred Activities",
+            "type": "array"
+          },
+          "soft_preference_note": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Soft Preference Note",
+            "type": "string"
+          }
+        },
+        "title": "Preferences",
+        "type": "object"
+      },
+      "User": {
+        "additionalProperties": false,
+        "description": "Private owner record; never use as another user's profile response.",
+        "properties": {
+          "matching": {
+            "$ref": "#/$defs/MatchingSettings"
+          },
+          "timezone": {
+            "default": "America/New_York",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "calendar_sharing": {
+            "$ref": "#/$defs/VisibilityPolicy"
+          },
+          "preferences": {
+            "$ref": "#/$defs/Preferences"
+          },
+          "hard_constraints": {
+            "$ref": "#/$defs/HardConstraints"
+          },
+          "id": {
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
+            "title": "Id",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_demo": {
+            "default": true,
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "community": {
+            "anyOf": [
+              {
+                "const": "georgia_tech",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "georgia_tech",
+            "title": "Community"
+          }
+        },
+        "required": [
+          "hard_constraints",
+          "id",
+          "display_name"
+        ],
+        "title": "User",
+        "type": "object"
+      },
+      "VisibilityPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "default": "private",
+            "enum": [
+              "private",
+              "community",
+              "friends",
+              "selected_friends"
+            ],
+            "title": "Audience",
+            "type": "string"
+          },
+          "selected_friend_ids": {
+            "items": {
+              "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
+              "type": "string"
+            },
+            "title": "Selected Friend Ids",
+            "type": "array"
+          }
+        },
+        "title": "VisibilityPolicy",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "mode": {
+        "enum": [
+          "demo",
+          "google"
+        ],
+        "title": "Mode",
+        "type": "string"
+      },
+      "configured": {
+        "title": "Configured",
+        "type": "boolean"
+      },
+      "authenticated": {
+        "title": "Authenticated",
+        "type": "boolean"
+      },
+      "user": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/User"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "calendar_mode": {
+        "enum": [
+          "mock",
+          "google"
+        ],
+        "title": "Calendar Mode",
+        "type": "string"
+      },
+      "calendar_connected": {
+        "title": "Calendar Connected",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "mode",
+      "configured",
+      "authenticated",
+      "user",
+      "calendar_mode",
+      "calendar_connected"
+    ],
+    "title": "AuthStatus",
     "type": "object"
   }
 }

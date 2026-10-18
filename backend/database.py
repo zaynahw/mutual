@@ -142,6 +142,23 @@ def initialize_database() -> None:
                 request_id TEXT REFERENCES hangout_requests(id)
             );
 
+            CREATE TABLE IF NOT EXISTS google_accounts (
+                subject TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT UNIQUE NOT NULL REFERENCES users(id),
+                email TEXT NOT NULL,
+                credentials TEXT
+            );
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                token_hash TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL REFERENCES users(id),
+                expires_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state_hash TEXT PRIMARY KEY NOT NULL,
+                browser_hash TEXT NOT NULL,
+                data TEXT NOT NULL,
+                expires_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS creation_receipts (
                 actor_id TEXT NOT NULL REFERENCES users(id),
                 key TEXT NOT NULL,

@@ -7,7 +7,9 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 
 Activity = Literal["coffee", "meal", "walk", "study", "concert"]
 DurationMinutes = Annotated[int, Field(strict=True, ge=30, le=120, multiple_of=30)]
-DemoUserId = Annotated[str, Field(pattern=r"^demo-[a-z0-9-]+$")]
+UserId = Annotated[str, Field(pattern=r"^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$")]
+# Compatibility name for agent-lane imports; new code should use UserId.
+DemoUserId = UserId
 Audience = Literal["private", "community", "friends", "selected_friends"]
 
 
@@ -97,15 +99,15 @@ class User(UserSettings):
     """Private owner record; never use as another user's profile response."""
     id: DemoUserId
     display_name: str = Field(min_length=1, max_length=100)
-    is_demo: Literal[True] = True
-    community: Literal["georgia_tech"] = "georgia_tech"
+    is_demo: bool = True
+    community: Literal["georgia_tech"] | None = "georgia_tech"
 
 
 class PublicUser(Model):
     id: DemoUserId
     display_name: str
-    is_demo: Literal[True] = True
-    community: Literal["georgia_tech"] = "georgia_tech"
+    is_demo: bool = True
+    community: Literal["georgia_tech"] | None = "georgia_tech"
 
 
 class FriendRequestCreate(Model):
@@ -325,3 +327,17 @@ class HangoutIntentDraft(Model):
     timezone: str
     result: IntentInterpretationResult
     request_id: str | None = None
+
+
+class AuthStart(Model):
+    purpose: Literal['login','calendar']='login'
+    timezone: str='America/New_York'
+
+
+class AuthStatus(Model):
+    mode: Literal['demo','google']
+    configured: bool
+    authenticated: bool
+    user: User | None
+    calendar_mode: Literal['mock','google']
+    calendar_connected: bool

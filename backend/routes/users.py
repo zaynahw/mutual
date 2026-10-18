@@ -17,7 +17,7 @@ def get_users(current_user: CurrentUser) -> list[PublicUser]:
     return [
         PublicUser(id=user.id, display_name=user.display_name,
                    is_demo=user.is_demo, community=user.community)
-        for user in list_users()
+        for user in list_users() if user.is_demo == current_user.is_demo
     ]
 
 

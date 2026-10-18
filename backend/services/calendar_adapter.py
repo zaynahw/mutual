@@ -23,9 +23,5 @@ class MockCalendarAdapter:
         # Caller must enforce permissions and both approvals, even for mocks.
         return self.events.setdefault(idempotency_key, f"demo-event-{proposal.id}")
 
-class GoogleCalendarAdapter:
-    async def get_busy(self, user_id: str, search: Interval) -> list[BusyInterval]:
-        raise NotImplementedError("Calendar lane: implement OAuth and Google free/busy")
-
-    async def create_event(self, proposal: Proposal, participant_ids: list[str], idempotency_key: str) -> str:
-        raise NotImplementedError("Calendar lane: implement idempotent event creation")
+# Kept here as a compatibility export for the calendar lane.
+from backend.services.google_calendar import GoogleCalendarAdapter

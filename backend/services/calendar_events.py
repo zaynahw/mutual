@@ -16,6 +16,17 @@ async def finalize_proposal(
     if attempt.event_id is not None:
         return CalendarEventResponse(proposal_id=proposal_id, event_id=attempt.event_id), False
     try:
+        provider_key = 'mutual-' + sha256(proposal_id.encode()).hexdigest()
+        participants = [attempt.request.requester_id, attempt.request.invitee_id]
+        finder = getattr(calendar, 'find_event', None)
+        if finder is not None:
+            try:
+                recovered = await finder(attempt.proposal, participants, provider_key)
+            except Exception as error:
+                raise CalendarUnavailable() from error
+            if recovered:
+                complete_event(attempt, recovered)
+                return CalendarEventResponse(proposal_id=proposal_id,event_id=recovered), False
         candidates = await build_candidates(attempt.request, calendar)
         if not any(fits_candidate(attempt.proposal, candidate) for candidate in candidates):
             raise ValueError('This plan no longer fits current availability')
