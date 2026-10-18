@@ -1,5 +1,6 @@
 """Calendar boundary: free/busy only; event creation requires backend approval checks."""
 from typing import Protocol
+from fastapi import HTTPException
 from backend.models import BusyInterval, Interval, Proposal
 from datetime import datetime, timezone
 from googleapiclient.discovery import build
@@ -22,16 +23,22 @@ class MockCalendarAdapter:
         return self.events.setdefault(idempotency_key, f"demo-event-{proposal.id}")
 
 class GoogleCalendarAdapter:
-    def __init__(self, token_storage_service):
-        self.token_storage = token_storage_service
+    def __init__(self, token_store: dict):
+        self.token_store = token_store
 
     async def get_busy(self, user_id: str, search: Interval) -> list[BusyInterval]:
-        token_data = self.token_storage.get_token(user_id)
-        if not token_data:
-            raise ValueError(f"No valid Google Calendar credentials found for user {user_id}")
+        # Support both dictionary lookups and object-style token store wrappers if used by teammates
+        if hasattr(self.token_store, "get_token"):
+            credentials_data = self.token_store.get_token(user_id)
+        else:
+            credentials_data = self.token_store.get(user_id)
 
-        creds = Credentials(**token_data)
+        if not credentials_data:
+            raise HTTPException(status_code=404, detail=f"No calendar linked for user {user_id}")
+
+        creds = Credentials(**credentials_data)
         service = build('calendar', 'v3', credentials=creds)
+
 
         body = {
             "timeMin": search.start.isoformat(),
