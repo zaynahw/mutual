@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from backend.routes.intents import router as intents_router
 from backend.routes.users import router as users_router
 from backend.routes.hangouts import router as hangouts_router
 from backend.routes.friendships import router as friendships_router
@@ -12,6 +13,7 @@ from backend.routes.proposals import router as proposals_router
 app = FastAPI(title="Mutual", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"], allow_headers=["X-Demo-User-Id", "Content-Type", "Idempotency-Key"])
 
+app.include_router(intents_router)
 app.include_router(users_router)
 app.include_router(hangouts_router)
 app.include_router(friendships_router)

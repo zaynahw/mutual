@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { checkHealth, getMe, listUsers } from './lib/api';
 import type { PublicUser, User } from './lib/api';
 import './style.css';
+import { MatchingPreferences } from './components/MatchingPreferences';
 import { SocialWindows } from './components/SocialWindows';
 import { Friendships } from './components/Friendships';
 import { ScheduleViewer } from './components/ScheduleViewer';
@@ -110,7 +111,7 @@ function App() {
         </section>
       </div></div>}
       {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'people'}><Friendships key={`friendships-${selectedId}`} currentUser={panel.me} users={panel.users} active={tab === 'people'} /></div>}
-      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'availability'}><SocialWindows key={`windows-${selectedId}`} user={panel.me} users={panel.users} active={tab === 'availability'} /></div>}
+      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'availability'}><MatchingPreferences key={`matching-${selectedId}`} user={panel.me} onSaved={updated => setPanel(previous => previous.status === 'ready' && previous.selectedId === updated.id ? {...previous,me:updated} : previous)} /><SocialWindows key={`windows-${selectedId}`} user={panel.me} users={panel.users} active={tab === 'availability'} /></div>}
       {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'schedules'}><ScheduleViewer key={`schedule-${selectedId}`} user={panel.me} users={panel.users} /></div>}
       {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'plans'}><HangoutRequests key={`plans-${selectedId}`} user={panel.me} users={panel.users} active={tab === 'plans'} onNavigate={setTab} /></div>}
     </div>

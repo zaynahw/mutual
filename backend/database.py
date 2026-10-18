@@ -135,6 +135,13 @@ def initialize_database() -> None:
                     OR (status != 'completed' AND event_id IS NULL))
             );
 
+            CREATE TABLE IF NOT EXISTS hangout_intents (
+                id TEXT PRIMARY KEY NOT NULL,
+                owner_id TEXT NOT NULL REFERENCES users(id),
+                data TEXT NOT NULL,
+                request_id TEXT REFERENCES hangout_requests(id)
+            );
+
             CREATE TABLE IF NOT EXISTS creation_receipts (
                 actor_id TEXT NOT NULL REFERENCES users(id),
                 key TEXT NOT NULL,

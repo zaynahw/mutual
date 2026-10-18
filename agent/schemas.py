@@ -24,6 +24,8 @@ class OwnerPrivateContext(Model):
     soft_preference_note: str = Field(default="", max_length=1000)
     max_duration_minutes: DurationMinutes = 120
     timezone: str = "America/New_York"
+    request_preferences: str = Field(default="", max_length=1000)
+    preferred_periods: list[Literal["morning", "afternoon", "evening"]] = Field(default_factory=list)
 
 
 class AgentDecision(Model):

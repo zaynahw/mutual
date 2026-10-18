@@ -9,6 +9,7 @@ export interface PublicUser {
 }
 export interface User extends PublicUser {
   timezone: string;
+  matching: {mode: "social_windows" | "calendar_guided"; start_hour: number; end_hour: number};
   calendar_sharing: {
     audience: 'private' | 'community' | 'friends' | 'selected_friends';
     selected_friend_ids: string[];
@@ -147,7 +148,7 @@ export interface HangoutInput extends Interval {
   allowed_durations: Duration[];
   location: string | null;
 }
-export interface HangoutRequest extends HangoutInput { id: string; requester_id: string }
+export interface HangoutRequest extends HangoutInput { id: string; requester_id: string; origin: "manual" | "intent"; search_windows: Interval[] }
 export interface CandidateOption {
   slot: Interval;
   eligible_activities: Activity[];
@@ -220,3 +221,18 @@ export async function negotiateHangout(userId: string, requestId: string, signal
 
 export const updatePreferenceNote = (userId: string, note: string, signal: AbortSignal) =>
   requestJson<User>('/users/me/preferences', {userId,signal,method:'PATCH',body:{soft_preference_note:note}});
+
+export interface IntentInput { invitee_id: string; days: string[]; message: string }
+export interface IntentDraft {
+  id: string; owner_id: string; input: IntentInput; timezone: string; request_id: string|null;
+  result: {source: NegotiationResponse['source']; interpretation: {
+    activities: Activity[]; allowed_durations: Duration[]; preferred_periods: string[];
+    earliest: string|null; latest: string|null; clarification: string|null;
+  }};
+}
+export const interpretIntent = (userId: string,body: IntentInput,signal: AbortSignal) =>
+  requestJson<IntentDraft>('/hangout-intents/interpret',{userId,body,signal,method:'POST'});
+export const sendIntent = (userId: string,id: string,signal: AbortSignal) =>
+  requestJson<HangoutRequest>(`/hangout-intents/${encodeURIComponent(id)}/send`,{userId,signal,method:'POST'});
+export const updateMatching = (userId: string,body: User['matching'],signal: AbortSignal) =>
+  requestJson<User>('/users/me/matching',{userId,body,signal,method:'PATCH'});

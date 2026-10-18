@@ -1,4 +1,5 @@
 import React from 'react';
+import { IntentRequestForm } from './IntentRequestForm';
 import { createProposal, getCandidates, listOverviews, negotiateHangout } from '../lib/api';
 import type { Activity, CandidateOption, Duration, HangoutOverview, HangoutRequest, NegotiationResponse, ProposalResponse, PublicUser, User } from '../lib/api';
 import { visibleProposals, planStatus } from '../lib/proposals';
@@ -34,6 +35,7 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
   const [options, setOptions] = React.useState<{ requestId: string; items: CandidateOption[] } | null>(null);
   const [proposalId, setProposalId] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [manual, setManual] = React.useState(false);
   const [showForm, setShowForm] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [negotiation, setNegotiation] = React.useState<{requestId: string; result: NegotiationResponse} | null>(null);
@@ -90,19 +92,40 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
   }
   function revise(request: HangoutRequest) {
     setDraft({invitee:other(request), start:isoToZonedInput(request.start,user.timezone), end:isoToZonedInput(request.end,user.timezone), activities:request.allowed_activities, durations:request.allowed_durations, location:request.location || ''});
-    setNotice(''); setShowForm(true);
+    setNotice(''); setManual(true); setShowForm(true);
   }
-  if (showForm) return <HangoutForm user={user} users={users} draft={draft} setDraft={setDraft} onBack={() => setShowForm(false)} onSaved={request => {
+  function askAgents(requestId: string) {
+    setNegotiation(null);
+    void run(async signal => {
+      setNegotiating(true);
+      try {
+        const result = await negotiateHangout(user.id,requestId,signal);
+        if (!signal.aborted) {
+          setNegotiation({requestId,result});
+          if (result.proposal) {setProposalId(result.proposal.id);setOptions(null);}
+          await refresh();
+        }
+      } finally {if (!signal.aborted) setNegotiating(false);}
+    });
+  }
+  function saved(request: HangoutRequest, useAgent: boolean) {
     setOverviews(old => [...old.filter(item => item.request.id !== request.id), {request,proposals:[]}]);
     setSelectedId(request.id); setProposalId(null); setShowForm(false); setDraft(initialDraft());
-    findTimes(request);
-  }} />;
+    if (useAgent) askAgents(request.id); else findTimes(request);
+  }
+  if (showForm) return <section className="demo-panel space-y-4">
+    <button className="demo-secondary" onClick={() => setShowForm(false)}>Back to plans</button>
+    <h2>Make time for someone</h2>
+    <div className="flex gap-2"><button onClick={() => setManual(false)} aria-pressed={!manual}>Tell my agent</button><button className="demo-secondary" onClick={() => setManual(true)} aria-pressed={manual}>Advanced manual search</button></div>
+    <div hidden={manual}><IntentRequestForm user={user} users={users} onSaved={request => saved(request,true)} /></div>
+    <div hidden={!manual}><HangoutForm user={user} users={users} draft={draft} setDraft={setDraft} onBack={() => setShowForm(false)} onSaved={request => saved(request,false)} /></div>
+  </section>;
   return <section className="demo-panel">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2>My plans</h2><p className="text-sm text-stone-600">Choose a request to continue. Status shows whose turn it is.</p></div>
       <div className="flex gap-2">
         <button className="demo-secondary" disabled={busy || loading} onClick={() => void refresh()}>Refresh plans</button>
-        <button disabled={busy || loading} onClick={() => {setNotice('');setShowForm(true);}}>New hangout</button>
+        <button disabled={busy || loading} onClick={() => {setNotice('');setManual(false);setShowForm(true);}}>New hangout</button>
       </div>
     </div>
     <p className="text-sm text-stone-600">Mock calendars · manual or agent suggestions · times in {user.timezone}</p>
@@ -130,7 +153,7 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
         {selected && <>
           <div className="demo-choice space-y-2">
             <h3>You and {name(other(selected.request))}</h3>
-            <p>Search: {dateTime(selected.request.start,user.timezone)} – {dateTime(selected.request.end,user.timezone)}</p>
+            <p>Search: {(selected.request.search_windows.length ? selected.request.search_windows : [selected.request]).map(window => `${dateTime(window.start,user.timezone)} – ${dateTime(window.end,user.timezone)}`).join('; ')}</p>
             <p>{selected.request.allowed_activities.join(', ')} · {selected.request.allowed_durations.join(', ')} minutes</p>
             {!agreed && <button className="demo-secondary" disabled={busy} onClick={() => revise(selected.request)}>Revise search in a new request</button>}
           </div>
@@ -141,21 +164,7 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
           </div>}
           {!agreed && <div className="space-y-3">
             {!visible.length && <p>No active proposal yet. Find times below or revise your search.</p>}
-            <button disabled={busy || loading} onClick={() => {
-              const requestId = selected.request.id;
-              setNegotiation(null);
-              void run(async signal => {
-                setNegotiating(true);
-                try {
-                  const result = await negotiateHangout(user.id,requestId,signal);
-                  if (!signal.aborted) {
-                    setNegotiation({requestId,result});
-                    if (result.proposal) {setProposalId(result.proposal.id);setOptions(null);}
-                    await refresh();
-                  }
-                } finally {if (!signal.aborted) setNegotiating(false);}
-              });
-            }}>Let agents suggest a plan</button>
+            <button disabled={busy || loading} onClick={() => askAgents(selected.request.id)}>Let agents suggest a plan</button>
             <p className="text-sm text-stone-600">Agent suggestions need both humans’ approval. Mock and fallback results are explicitly labeled.</p>
             <button disabled={busy || loading} onClick={() => findTimes(selected.request)}>{visible.length ? 'Find another option' : 'Find available times'}</button>
           </div>}
@@ -165,7 +174,7 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
             <ol>{negotiation.result.turns.map((turn,index) => <li key={index}>{name(turn.actor_id)}’s agent: {turn.decision}{turn.activity ? ` · ${turn.activity}` : ''}{turn.slot ? ` · ${dateTime(turn.slot.start,user.timezone)}` : ''}</li>)}</ol>
           </section>}
           {options?.requestId === selected.request.id && !agreed && (options.items.length === 0 ? <div className="demo-choice space-y-3">
-            <h3>No compatible times found</h3><p>Both people need overlapping social availability with compatible activities and duration. Calendar conflicts and visibility also apply. Private reasons are not disclosed.</p>
+            <h3>No compatible times found</h3><p>Both people need compatible activities and duration, plus shared social windows or explicit calendar matching consent. Calendar conflicts and visibility also apply. Private reasons are not disclosed.</p>
             <div className="flex flex-wrap gap-2">
               <button className="demo-secondary" onClick={() => onNavigate('availability')}>Check my availability</button>
               <button className="demo-secondary" onClick={() => onNavigate('people')}>Check friendships</button>

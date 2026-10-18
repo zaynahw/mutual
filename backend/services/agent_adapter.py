@@ -5,14 +5,17 @@ from __future__ import annotations
 import asyncio
 import os
 from typing import Literal, Protocol
+from datetime import date
 
-from backend.models import CandidateOption, CandidateSlot, HangoutRequest, User
+from backend.models import CandidateOption, CandidateSlot, HangoutRequest, User, HangoutIntentCreate, IntentInterpretationResult
 
 from agent.schemas import NegotiationResult, OwnerPrivateContext
 
 
 class AgentAdapter(Protocol):
     source: Literal["local_agent", "mock"]
+
+    async def interpret(self, body: HangoutIntentCreate, timezone: str, today: date) -> IntentInterpretationResult: ...
 
     async def evaluate(
         self, request: HangoutRequest, candidates: list[CandidateSlot]
@@ -33,6 +36,11 @@ class MockAgentAdapter:
     """Deterministic demos: passthrough rank + first eligible exact plan."""
 
     source: Literal["mock"] = "mock"
+
+    async def interpret(self, body: HangoutIntentCreate, timezone: str, today: date) -> IntentInterpretationResult:
+        from agent.interpret import deterministic_interpret
+        return IntentInterpretationResult(source='mock', interpretation=deterministic_interpret(body,today))
+
 
     async def evaluate(
         self, request: HangoutRequest, candidates: list[CandidateSlot]
@@ -92,6 +100,10 @@ class LocalAgentAdapter:
 
     def __init__(self, *, fallback_on_error: bool | None = None) -> None:
         self.fallback_on_error = fallback_on_error
+
+    async def interpret(self, body: HangoutIntentCreate, timezone: str, today: date) -> IntentInterpretationResult:
+        from agent.interpret import interpret_message
+        return await asyncio.to_thread(interpret_message,body,timezone,today,fallback_on_error=self.fallback_on_error)
 
     async def evaluate(
         self, request: HangoutRequest, candidates: list[CandidateSlot]

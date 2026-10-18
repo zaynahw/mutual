@@ -281,3 +281,50 @@ negotiations load the saved owner note; existing proposals and approvals do not
 change. Notes guide choices among valid candidates and never override hard rules.
 The full UserSettings update route remains planned; this endpoint is intentionally
 limited to the note. Demo UI editor is under My profile.
+
+### Natural-language requests (optional, confirmed before sending)
+
+The existing manual request API remains available. The new demo path is:
+`interpret → owner reviews → send → negotiate → both approvals → calendar event`.
+
+| Endpoint | Body | Response |
+| --- | --- | --- |
+| PATCH /users/me/matching | MatchingSettings | 200 User |
+| POST /hangout-intents/interpret | HangoutIntentCreate | 200 HangoutIntentDraft |
+| GET /hangout-intents/{id} | none | 200 HangoutIntentDraft, owner only |
+| POST /hangout-intents/{id}/send | none | 200 HangoutRequest, owner only; repeat returns same request |
+
+Example interpretation input:
+```json
+{"invitee_id":"demo-daniella","days":["2026-10-19","2026-10-21"],"message":"I prefer morning coffee or a walk"}
+```
+Dates must be distinct, up to seven, within today through 14 days ahead in the
+requester's timezone. Recurring weekdays are not supported. Input selects an
+accepted friend. Interpretation returns an owner-only draft, a labeled source
+(`local_agent`, `mock`, `demo_fallback`), and `IntentInterpretation`: activities,
+allowed_durations, preferred_periods, earliest/latest local HH:MM or null, and a
+clarification question or null. The original message stays private. Explicit supported clock limits are compiled deterministically; the model
+interprets the broader message. Model output may still be semantically wrong: the owner reviews before sending.
+Clarifications block sending; edit and interpret again. Invalid dates/inputs use
+422; unavailable inference uses a generic 502. Missing/another owner's drafts use
+404; revoked friendship, stale timezone/dates, or unresolved clarification use 409.
+
+Sending compiles timezone-aware `search_windows` for exactly the selected dates
+and sets server-owned `origin=intent`. It creates no proposal, approval or event.
+Use POST /hangout-requests/{id}/negotiate next. Selected dates are never expanded
+to include intervening days. Ambiguous/nonexistent required clock times at DST
+transitions are rejected. Past times are excluded; today's starts round forward
+to a five-minute boundary so inference and fresh checks can share a stable start.
+
+MatchingSettings defaults to `{"mode":"social_windows","start_hour":9,"end_hour":21}`.
+Calendar-guided mode is explicit opt-in, limited to accepted friends and personal
+hours (integer start 0–23, end 1–24, end greater than start; timezone from profile).
+It uses calendar-free time instead of detailed social windows. Both users' activity
+and duration boundaries still apply. Confirming one's own natural request grants
+request-scoped matching within one's personal hours; the recipient still needs
+calendar-guided opt-in or authorized social windows. Browsing visibility remains
+separate. Changing matching settings does not broaden calendar browsing access.
+The requester's raw message and flexible period preferences go only to their own
+agent; shared requests and the other agent never receive the message. Manual
+requests default to origin=manual and retain the existing social-window behavior
+unless a user has opted into calendar-guided matching.

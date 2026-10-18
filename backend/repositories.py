@@ -5,7 +5,7 @@ window results include private/matching-only windows. These are not public API
 responses. SQLite integrity errors propagate for callers to handle.
 """
 from backend.database import connect
-from backend.models import SocialWindow, User
+from backend.models import MatchingSettings, SocialWindow, User
 
 
 def save_user(user: User) -> None:
@@ -102,3 +102,16 @@ def delete_social_window(window_id: str, user_id: str) -> bool:
             (window_id, user_id),
         )
     return result.rowcount == 1
+
+
+def update_matching_settings(user_id: str, settings: MatchingSettings) -> User:
+    with connect() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute('SELECT data FROM users WHERE id = ?', (user_id,)).fetchone()
+        if row is None:
+            raise LookupError('User not found')
+        data = User.model_validate_json(row['data']).model_dump()
+        data['matching'] = settings.model_dump()
+        updated = User.model_validate(data)
+        connection.execute('UPDATE users SET data = ? WHERE id = ?', (updated.model_dump_json(), user_id))
+        return updated

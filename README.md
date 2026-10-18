@@ -120,3 +120,20 @@ To try private soft preferences: open My profile, edit and save the note, then
 run a new agent suggestion from My plans. Repeat as the other demo user to give
 each agent its own preferences. Activity, duration, and time-of-day preferences
 can guide choices among existing valid options; existing proposals stay unchanged.
+
+### Try a request in your own words
+
+In the demo, first accept a friendship under People. As the recipient, open My
+availability and explicitly enable calendar-free matching within personal hours,
+or share social windows. Then switch to the sender and choose My plans → New
+hangout → Tell my agent. Select a friend and days, describe what sounds good, and
+review the interpretation. “Prefer mornings” stays flexible; “only before noon”
+becomes a required limit. Confirm and ask agents saves the request and starts
+negotiation. Both people still approve the exact suggested plan before scheduling.
+
+Calendar matching defaults off. Existing accounts and social windows are preserved.
+Run `.venv/bin/python -m backend.database` to add the new private intent-draft table
+if the backend was already running. Advanced manual search is still available.
+The same configured agent adapter handles interpretation and negotiation; mock or
+fallback previews are labeled. This is selected-date matching, not recurring rules
+or unrestricted chat. The confirmation step catches misinterpreted messages.

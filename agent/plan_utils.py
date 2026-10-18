@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 from typing import Sequence
 
 from backend.models import (
@@ -51,6 +52,8 @@ def private_payload(ctx: OwnerPrivateContext) -> dict:
         "soft_preference_note": ctx.soft_preference_note,
         "max_duration_minutes": ctx.max_duration_minutes,
         "timezone": ctx.timezone,
+        "request_preferences": ctx.request_preferences,
+        "preferred_periods": ctx.preferred_periods,
     }
 
 
@@ -137,10 +140,13 @@ def deterministic_fallback_plan(
             if allowed_duration(option, request, ctx, d)
         ]
         pref_hit = 0 if any(a in preferred for a in acts) else 1
-        return (pref_hit, option.slot.start.timestamp(), index, acts, durs)
+        hour = option.slot.start.astimezone(ZoneInfo(ctx.timezone)).hour
+        period = 'morning' if hour < 12 else 'afternoon' if hour < 17 else 'evening'
+        period_hit = 0 if not ctx.preferred_periods or period in ctx.preferred_periods else 1
+        return (period_hit, pref_hit, option.slot.start.timestamp(), index, acts, durs)
 
-    ranked = sorted((score(i, o) for i, o in enumerate(options)), key=lambda t: t[:3])
-    for pref_hit, _ts, index, acts, durs in ranked:
+    ranked = sorted((score(i, o) for i, o in enumerate(options)), key=lambda t: t[:4])
+    for _period_hit, pref_hit, _ts, index, acts, durs in ranked:
         if not acts or not durs:
             continue
         activity = next((a for a in acts if a in preferred), acts[0])

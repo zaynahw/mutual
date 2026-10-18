@@ -1,5 +1,5 @@
 """Shared domain and API schemas. Authorization belongs in backend services."""
-from datetime import timezone
+from datetime import date, timezone
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -64,7 +64,20 @@ class HardConstraints(Model):
     max_duration_minutes: DurationMinutes = 120
 
 
+class MatchingSettings(Model):
+    mode: Literal["social_windows", "calendar_guided"] = "social_windows"
+    start_hour: Annotated[int, Field(strict=True, ge=0, le=23)] = 9
+    end_hour: Annotated[int, Field(strict=True, ge=1, le=24)] = 21
+
+    @model_validator(mode="after")
+    def daytime_range(self):
+        if self.end_hour <= self.start_hour:
+            raise ValueError("End hour must be after start hour; overnight hours are not supported")
+        return self
+
+
 class UserSettings(Model):
+    matching: MatchingSettings = Field(default_factory=MatchingSettings)
     timezone: str = "America/New_York"
     calendar_sharing: VisibilityPolicy = Field(default_factory=VisibilityPolicy)
     preferences: Preferences = Field(default_factory=Preferences)
@@ -152,6 +165,7 @@ class ScheduleResponse(Model):
 
 
 class HangoutRequestCreate(Interval):
+    search_windows: list[Interval] = Field(default_factory=list, max_length=7)
     invitee_id: DemoUserId
     allowed_activities: list[Activity] = Field(min_length=1)
     allowed_durations: list[DurationMinutes] = Field(min_length=1)
@@ -161,10 +175,18 @@ class HangoutRequestCreate(Interval):
     def duration_fits(self):
         if min(self.allowed_durations) > self.duration_minutes:
             raise ValueError("Search range cannot fit any allowed duration")
+        previous_end = None
+        for window in self.search_windows:
+            if window.start < self.start or window.end > self.end:
+                raise ValueError("Selected-day windows must fit within the search range")
+            if previous_end is not None and window.start < previous_end:
+                raise ValueError("Selected-day windows must be sorted and non-overlapping")
+            previous_end = window.end
         return self
 
 
 class HangoutRequest(HangoutRequestCreate):
+    origin: Literal["manual", "intent"] = "manual"
     id: str
     requester_id: DemoUserId
 
@@ -247,3 +269,59 @@ class NegotiationResponse(Model):
     source: Literal["local_agent", "demo_fallback", "mock"]
     proposal: Proposal | None = None
     turns: list[PublicNegotiationTurn] = Field(default_factory=list)
+
+
+TimePeriod = Literal["morning", "afternoon", "evening"]
+ClockTime = Annotated[str, Field(pattern=r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")]
+
+
+class HangoutIntentCreate(Model):
+    invitee_id: DemoUserId
+    days: list[date] = Field(min_length=1, max_length=7)
+    message: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("days")
+    @classmethod
+    def distinct_days(cls, value):
+        if len(value) != len(set(value)):
+            raise ValueError("Choose distinct dates")
+        return sorted(value)
+
+    @field_validator("message")
+    @classmethod
+    def nonblank_message(cls, value):
+        if not value.strip():
+            raise ValueError("Describe what you would like to do")
+        return value.strip()
+
+
+class IntentInterpretation(Model):
+    activities: list[Activity] = Field(min_length=1, max_length=5)
+    allowed_durations: list[DurationMinutes] = Field(min_length=1, max_length=4)
+    preferred_periods: list[TimePeriod] = Field(default_factory=list, max_length=3)
+    earliest: ClockTime | None = None
+    latest: ClockTime | None = None
+    clarification: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def consistent_choices(self):
+        for values in (self.activities, self.preferred_periods):
+            if len(values) != len(set(values)):
+                raise ValueError("Interpretation choices must be unique")
+        if self.earliest and self.latest and self.earliest >= self.latest and not self.clarification:
+            raise ValueError("Conflicting time limits need clarification")
+        return self
+
+
+class IntentInterpretationResult(Model):
+    source: Literal["local_agent", "demo_fallback", "mock"]
+    interpretation: IntentInterpretation
+
+
+class HangoutIntentDraft(Model):
+    id: str
+    owner_id: DemoUserId
+    input: HangoutIntentCreate
+    timezone: str
+    result: IntentInterpretationResult
+    request_id: str | None = None

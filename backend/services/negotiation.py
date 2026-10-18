@@ -9,6 +9,7 @@ from backend.models import HangoutRequest, NegotiationResponse, Proposal, Public
 from backend.negotiations import save_negotiation
 from backend.proposals import list_proposals_for_request
 from backend.repositories import get_user
+from backend.intents import request_intent
 from backend.services.agent_adapter import AgentAdapter, owner_context_from_user
 from backend.services.calendar_adapter import CalendarAdapter
 from backend.services.candidates import build_candidates
@@ -36,16 +37,25 @@ async def negotiate_request(
     requester, invitee = get_user(request.requester_id), get_user(request.invitee_id)
     if requester is None or invitee is None:
         raise LookupError('Participant not found')
+    intent = request_intent(request.id,requester.id)
     try:
         if options:
+            requester_ctx = owner_context_from_user(requester)
+            if intent is not None:
+                requester_ctx = requester_ctx.model_copy(update={
+                    'request_preferences':intent.input.message,
+                    'preferred_periods':intent.result.interpretation.preferred_periods,
+                })
             raw = await asyncio.wait_for(agent.negotiate(
-                request, options, owner_context_from_user(requester), owner_context_from_user(invitee),
+                request, options, requester_ctx, owner_context_from_user(invitee),
                 max_rounds=min(3, max_negotiate_rounds()),
             ), timeout=NEGOTIATION_TIMEOUT_SECONDS)
             result = NegotiationResult.model_validate(raw)
         else:
             result = NegotiationResult(status='no_match')
         source = 'mock' if agent.source == 'mock' else 'demo_fallback' if any(turn.decision.used_fallback for turn in result.turns) else 'local_agent'
+        if intent is not None and intent.result.source == 'demo_fallback':
+            source = 'demo_fallback'
         public_turns = []
         for turn in result.turns:
             if turn.actor_id not in (request.requester_id, request.invitee_id):

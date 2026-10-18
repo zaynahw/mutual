@@ -36,7 +36,8 @@ Rules:
 - duration_minutes must be in that option's eligible_durations AND request allowed_durations
 - duration_minutes must be <= the option slot length and <= owner max_duration_minutes
 - The exact plan starts at the option slot start (backend may refine)
-- Prefer the owner's preferred_activities when possible
+- Consider request_preferences first, then saved preferred_activities when possible
+- preferred_periods are soft time preferences; consider other periods if needed
 - Prefer earlier daytime options when tied
 - Use accept only when reviewing another party's offer that you fully agree with
 - Use counter when you want a different valid option/activity/duration
