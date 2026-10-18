@@ -27,3 +27,13 @@ test('cancelled options stay hidden and status follows the current user', async 
   assert.equal(planStatus([{...response,proposal:plan('done','scheduled')}], 'a'), 'Scheduled');
   assert.equal(planStatus([], 'a'), 'Choose a time');
 });
+
+test('legacy identical plans render once without combining decisions or mutating history', () => {
+  const first = {...plan('a','pending'),activity:'walk',location:null,
+    slot:{start:'2026-10-23T14:00:00Z',end:'2026-10-23T14:30:00Z'}};
+  const duplicate = {...first,id:'b',slot:{start:'2026-10-23T10:00:00-04:00',end:'2026-10-23T10:30:00-04:00'}};
+  const later = {...first,id:'c',slot:{start:'2026-10-23T14:30:00Z',end:'2026-10-23T15:00:00Z'}};
+  assert.deepEqual(visibleProposals([first,duplicate,later]),[first,later]);
+  assert.deepEqual(visibleProposals([first,{...duplicate,status:'approved'}]),[{...duplicate,status:'approved'}]);
+  assert.equal(duplicate.id,'b');
+});

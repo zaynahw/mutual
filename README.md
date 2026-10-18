@@ -168,3 +168,9 @@ profiles, friendships and social windows, run:
 `.venv/bin/python -m backend.scripts.reset_demo_plans`.
 It makes an ignored SQLite backup first and refuses databases containing real
 Google accounts or an in-progress calendar write. It never deletes Google events.
+
+For a pitch aligned with the current implementation and a two-account demo,
+see [judge demo walkthrough and scope](docs/judge-demo.md). Connected Google users
+now see an explicit social-matching choice. My plans preserves the latest safe
+agent exchange across reloads and distinguishes zero eligible options from agent
+disagreement. Calendar creation still requires both approvals and an explicit click.

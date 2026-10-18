@@ -1,6 +1,6 @@
 """Create and read person-first requests; matching is a separate operation."""
 from uuid import uuid4
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
@@ -94,9 +94,10 @@ async def negotiate(
     idempotency_key: Annotated[str, Header(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")],
     calendar: Annotated[CalendarAdapter, Depends(get_calendar_adapter)],
     agent: Annotated[AgentAdapter, Depends(get_agent_adapter)],
+    variation: Literal["any", "different_time"] = "any",
 ) -> NegotiationResponse:
     try:
-        return await negotiate_request(request, current_user.id, idempotency_key, calendar, agent)
+        return await negotiate_request(request, current_user.id, idempotency_key, calendar, agent, variation)
     except LookupError as error:
         raise HTTPException(status_code=404, detail="Hangout request not found") from error
     except ValueError as error:
@@ -104,4 +105,10 @@ async def negotiate(
     except CalendarUnavailable as error:
         raise HTTPException(status_code=502, detail="Calendar availability is temporarily unavailable") from error
     except AgentUnavailable as error:
-        raise HTTPException(status_code=502, detail="Agent negotiation is temporarily unavailable; try manual selection") from error
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+
+@router.get("/{request_id}/negotiation", response_model=NegotiationResponse | None)
+def get_negotiation(request: ParticipantRequest, current_user: CurrentUser) -> NegotiationResponse | None:
+    from backend.negotiations import latest_negotiation
+    return latest_negotiation(request.id, current_user.id)

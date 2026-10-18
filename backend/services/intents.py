@@ -11,6 +11,7 @@ from backend.models import HangoutIntentCreate, HangoutIntentDraft, HangoutReque
 from backend.repositories import get_user
 from backend.services.agent_adapter import AgentAdapter
 from backend.services.intent_dates import local_instant
+from backend.services.intent_limits import enforce_explicit_range
 from backend.services.negotiation import AgentUnavailable
 
 
@@ -28,6 +29,7 @@ async def interpret_intent(body: HangoutIntentCreate, owner: User, agent: AgentA
         result = await asyncio.wait_for(agent.interpret(body,owner.timezone,datetime.now(ZoneInfo(owner.timezone)).date()),timeout=60)
     except Exception as error:
         raise AgentUnavailable() from error
+    result = result.model_copy(update={'interpretation': enforce_explicit_range(body.message, result.interpretation)})
     draft = HangoutIntentDraft(id=f'intent-{uuid4()}',owner_id=owner.id,input=body,timezone=owner.timezone,result=result)
     save_intent(draft)
     return draft

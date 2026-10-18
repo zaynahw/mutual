@@ -2205,6 +2205,37 @@
         },
         "title": "Turns",
         "type": "array"
+      },
+      "candidate_count": {
+        "anyOf": [
+          {
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Candidate Count"
+      },
+      "outcome_code": {
+        "anyOf": [
+          {
+            "enum": [
+              "no_eligible_options",
+              "no_new_options",
+              "agents_no_match",
+              "round_limit"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Outcome Code"
       }
     },
     "required": [

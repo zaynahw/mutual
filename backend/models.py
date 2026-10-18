@@ -271,6 +271,8 @@ class NegotiationResponse(Model):
     source: Literal["local_agent", "demo_fallback", "mock"]
     proposal: Proposal | None = None
     turns: list[PublicNegotiationTurn] = Field(default_factory=list)
+    candidate_count: int | None = Field(default=None, ge=0)
+    outcome_code: Literal["no_eligible_options", "no_new_options", "agents_no_match", "round_limit"] | None = None
 
 
 TimePeriod = Literal["morning", "afternoon", "evening"]

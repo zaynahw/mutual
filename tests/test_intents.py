@@ -160,3 +160,43 @@ def test_matching_settings_patch_preserves_profile_and_validates_hours(ready):
 @pytest.mark.parametrize('day,clock', [(date(2026,11,1),'01:30'),(date(2026,3,8),'02:30')])
 def test_dst_ambiguous_or_nonexistent_clock_requires_clarification(day,clock):
     with pytest.raises(ValueError): local_instant(day,clock,'America/New_York')
+
+
+def test_explicit_between_range_is_preserved_and_compiled(ready):
+    from backend.repositories import save_user
+    client, _ = ready
+    for uid in (A, B):
+        user = get_user(uid)
+        save_user(user.model_copy(update={'hard_constraints': user.hard_constraints.model_copy(update={'allowed_activities':['walk','meal']})}))
+    guided(client)
+    draft = prepare(client, payload('Something chill, like a walk or food. I prefer earlier in the morning. But I want this hangout somewhere between 7am and 12 pm since thats when I have the most energy', offsets=(5,)))
+    parsed = draft['result']['interpretation']
+    assert parsed['earliest'] == '07:00' and parsed['latest'] == '12:00'
+    assert parsed['clarification'] is None
+    request = send(client, draft).json()
+    options = candidates(client, request)
+    assert options
+    zone = ZoneInfo(get_user(A).timezone)
+    for option in options:
+        assert datetime.fromisoformat(option['slot']['start']).astimezone(zone).hour >= 9
+        assert datetime.fromisoformat(option['slot']['end']).astimezone(zone).hour <= 12
+
+
+def test_backend_enforces_range_even_when_model_drops_it(ready):
+    from backend.models import IntentInterpretation, IntentInterpretationResult
+    client, _ = ready
+    class DropsLimits(MockAgentAdapter):
+        async def interpret(self, *args):
+            return IntentInterpretationResult(source='local_agent', interpretation=IntentInterpretation(
+                activities=['walk'], allowed_durations=[30,60], preferred_periods=['morning']))
+    app.dependency_overrides[get_agent_adapter] = lambda: DropsLimits()
+    parsed = prepare(client, payload('Prefer morning walks. Between 7am and 12pm'))['result']['interpretation']
+    assert (parsed['earliest'], parsed['latest']) == ('07:00','12:00')
+
+
+@pytest.mark.parametrize('message', ['Walk between 7 and 12', 'Walk between 7pm and 12pm', 'Walk between 7am and 12pm but only after 10am'])
+def test_ambiguous_or_conflicting_range_blocks_send(ready, message):
+    client, _ = ready
+    draft = prepare(client, payload(message))
+    assert draft['result']['interpretation']['clarification']
+    assert send(client, draft).status_code == 409

@@ -177,3 +177,189 @@ def test_saved_note_is_loaded_for_its_owner_on_next_negotiation(prepared):
     assert captured[0].soft_preference_note == note
     assert captured[1].soft_preference_note != note
     assert note not in response.text
+
+
+def test_exchange_history_survives_reload_for_both_participants_only(prepared):
+    client, request = prepared
+    path = f'/hangout-requests/{request.id}/negotiation'
+    headers = {'X-Demo-User-Id': request.requester_id}
+    assert client.get(path, headers=headers).json() is None
+    first = negotiate(client, request).json()
+    assert first['candidate_count'] > 0
+    assert first['outcome_code'] is None
+    for uid in (request.requester_id, request.invitee_id):
+        response = client.get(path, headers={'X-Demo-User-Id': uid})
+        assert response.status_code == 200
+        assert response.json() == first
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers={'X-Demo-User-Id': 'demo-kusum'}).status_code == 404
+    # The latest exchange can differ from an earlier saved receipt.
+    user = get_user(request.requester_id)
+    save_user(user.model_copy(update={'hard_constraints': user.hard_constraints.model_copy(
+        update={'allowed_activities': ['study']})}))
+    second = negotiate(client, request, key='another-attempt').json()
+    assert second['candidate_count'] == 0
+    assert second['outcome_code'] == 'no_eligible_options'
+    assert second['turns'] == []
+    assert client.get(path, headers=headers).json() == second
+
+
+def test_compacting_agent_options_preserves_only_authorized_combinations():
+    from backend.models import CandidateOption
+    from backend.services.agent_adapter import compact_options
+    slot = {'start':'2026-10-23T14:00:00Z', 'end':'2026-10-23T16:00:00Z'}
+    options = [CandidateOption(slot=slot, eligible_activities=[a], eligible_durations=d)
+               for a,d in [('walk',[30,60]),('meal',[30,60]),('study',[30])]]
+    compact = compact_options(options)
+    assert len(compact) == 2
+    def combinations(items):
+        return {(o.slot.start,o.slot.end,a,d) for o in items for a in o.eligible_activities for d in o.eligible_durations}
+    assert combinations(compact) == combinations(options)
+    assert options[0].eligible_activities == ['walk']
+
+
+def test_local_adapter_bounds_model_schema_to_eligible_choices(prepared, monkeypatch):
+    from backend.models import CandidateOption
+    from backend.services.agent_adapter import owner_context_from_user
+    import asyncio
+    _, request = prepared
+    seen = []
+    class Model:
+        def chat(self, messages, **kwargs):
+            properties = kwargs['format']['anyOf'][0]['properties']
+            seen.append(properties)
+            return json.dumps({'decision': 'propose' if len(seen)==1 else 'accept',
+                               'option_index':0, 'activity':'walk', 'duration_minutes':30})
+    monkeypatch.setattr('agent.negotiate.LocalLLM', Model)
+    options = [CandidateOption(slot={'start': request.start, 'end': request.end},
+                               eligible_activities=['walk'], eligible_durations=[30])]
+    result = asyncio.run(LocalAgentAdapter(fallback_on_error=False).negotiate(
+        request.model_copy(update={'allowed_activities':['walk']}), options,
+        owner_context_from_user(get_user(request.requester_id)),
+        owner_context_from_user(get_user(request.invitee_id))))
+    assert result.status == 'agreed'
+    assert len(seen) == 2
+    for properties in seen:
+        assert properties['activity']['enum'] == ['walk']
+        assert properties['duration_minutes']['enum'] == [30]
+        assert properties['option_index']['const'] == 0
+
+
+def test_another_option_never_repeats_an_existing_plan_and_retries_replay(prepared):
+    client, request = prepared
+    first = negotiate(client, request).json()
+    second = negotiate(client, request, key='another-option').json()
+    def exact(result):
+        return (result['proposal']['activity'], result['proposal']['slot'])
+    assert first['status'] == second['status'] == 'agreed'
+    assert exact(first) != exact(second)
+    assert negotiate(client, request, key='another-option').json() == second
+    assert len(list_proposals_for_request(request.id)) == 2
+
+
+def test_alternative_search_exposes_later_starts_and_reports_exhaustion(prepared):
+    from backend.models import CandidateOption, Proposal
+    from backend.services.negotiation import unseen_options
+    option = CandidateOption(slot={'start':'2026-10-23T14:00:00Z','end':'2026-10-23T15:00:00Z'},
+                             eligible_activities=['walk'],eligible_durations=[30])
+    first = Proposal(id='first',request_id='r',activity='walk',slot={
+        'start':'2026-10-23T14:00:00Z','end':'2026-10-23T14:30:00Z'})
+    choices = unseen_options([option], [first])
+    assert len(choices) == 1
+    assert choices[0].slot.start.isoformat() == '2026-10-23T14:30:00+00:00'
+    second = first.model_copy(update={'id':'second','slot':choices[0].slot})
+    assert unseen_options([option], [first,second]) == []
+
+
+def test_invalid_model_combination_gets_one_corrective_retry(prepared, monkeypatch):
+    from backend.models import CandidateOption
+    from backend.services.agent_adapter import owner_context_from_user
+    import asyncio
+    _, request = prepared
+    calls = []
+    class Model:
+        def chat(self, messages, **kwargs):
+            calls.append(messages)
+            if len(calls) == 1:
+                return json.dumps({'decision':'propose','option_index':0,'activity':'coffee','duration_minutes':30})
+            return json.dumps({'decision':'propose' if len(calls)==2 else 'accept',
+                               'option_index':0,'activity':'walk','duration_minutes':30})
+    monkeypatch.setattr('agent.negotiate.LocalLLM', Model)
+    option = CandidateOption(slot={'start':request.start,'end':request.end},eligible_activities=['walk'],eligible_durations=[30])
+    result = asyncio.run(LocalAgentAdapter(fallback_on_error=False).negotiate(
+        request.model_copy(update={'allowed_activities':['walk']}), [option],
+        owner_context_from_user(get_user(request.requester_id)),owner_context_from_user(get_user(request.invitee_id))))
+    assert result.status == 'agreed' and len(calls) == 3
+    assert 'valid combination' in calls[1][-1].content
+
+
+def test_invalid_model_retry_is_bounded_and_failure_message_is_safe(prepared,monkeypatch):
+    client, request = prepared
+    calls = []
+    class Model:
+        def chat(self, messages, **kwargs):
+            calls.append(1)
+            return json.dumps({'decision':'propose','option_index':9999,'activity':'walk','duration_minutes':30,'reason':'PRIVATE_REASON'})
+    monkeypatch.setattr('agent.negotiate.LocalLLM', Model)
+    app.dependency_overrides[get_agent_adapter] = lambda: LocalAgentAdapter(fallback_on_error=False)
+    response = negotiate(client,request)
+    assert response.status_code == 502
+    assert len(calls) == 2
+    assert 'valid plan' in response.json()['detail']
+    assert 'PRIVATE_REASON' not in response.text
+    assert list_proposals_for_request(request.id) == []
+
+
+def test_flat_schema_preserves_valid_no_match_without_forcing_a_plan(prepared, monkeypatch):
+    client, request = prepared
+    schemas = []
+    class Model:
+        def chat(self, messages, **kwargs):
+            schemas.append(kwargs['format'])
+            return json.dumps({'decision':'no_match','reason':'PRIVATE_VETO'})
+    monkeypatch.setattr('agent.negotiate.LocalLLM', Model)
+    app.dependency_overrides[get_agent_adapter] = lambda: LocalAgentAdapter(fallback_on_error=False)
+    response = negotiate(client,request)
+    assert response.status_code == 200
+    assert response.json()['status'] == 'no_match'
+    assert len(schemas) == 1
+    assert 'PRIVATE_VETO' not in response.text
+    variants = schemas[0]['anyOf']
+    assert variants[-1]['properties']['decision']['const'] == 'no_match'
+    for variant in variants[:-1]:
+        assert 'option_index' in variant['required']
+        assert 'const' in variant['properties']['option_index']
+        assert variant['additionalProperties'] is False
+
+
+def test_different_time_excludes_start_regardless_of_activity_or_duration(prepared):
+    client, request = prepared
+    first = negotiate(client, request).json()
+    path = f'/hangout-requests/{request.id}/negotiate?variation=different_time'
+    headers = {'X-Demo-User-Id':request.requester_id,'Idempotency-Key':'new-time'}
+    response = client.post(path,headers=headers)
+    assert response.status_code == 200, response.text
+    second = response.json()
+    assert second['status'] == 'agreed'
+    assert second['proposal']['slot']['start'] != first['proposal']['slot']['start']
+    assert client.post(path,headers=headers).json() == second
+    # The same key cannot silently replay a different variation.
+    assert client.post(path.split('?')[0],headers=headers).status_code == 409
+    assert client.post(path.replace('different_time','unknown'),headers={**headers,'Idempotency-Key':'invalid-mode'}).status_code == 422
+
+
+def test_different_time_no_remaining_start_skips_agents(prepared,monkeypatch):
+    from backend.models import CandidateOption
+    client, request = prepared
+    first = negotiate(client,request).json()['proposal']
+    only = CandidateOption(slot=first['slot'],eligible_activities=[first['activity']],eligible_durations=[30])
+    async def candidates(*args): return [only]
+    monkeypatch.setattr('backend.services.negotiation.build_candidates', candidates)
+    class NeverCalled(MockAgentAdapter):
+        async def negotiate(self,*args,**kwargs): pytest.fail('no new time must skip inference')
+    app.dependency_overrides[get_agent_adapter] = lambda: NeverCalled()
+    response = client.post(f'/hangout-requests/{request.id}/negotiate?variation=different_time',headers={
+        'X-Demo-User-Id':request.requester_id,'Idempotency-Key':'no-new-time'})
+    assert response.status_code == 200
+    assert response.json()['outcome_code'] == 'no_new_options'
+    assert len(list_proposals_for_request(request.id)) == 1

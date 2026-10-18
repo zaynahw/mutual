@@ -359,3 +359,31 @@ validated recovery prevent duplicate writes. Free/busy errors fail closed. Local
 confirmed real bookings supplement Google's primary-calendar results so a pending
 invite cannot leave the invitee double-bookable in Mutual. No event titles or
 other event details are exposed through schedule responses.
+
+### Saved public exchange
+
+`GET /hangout-requests/{id}/negotiation` returns the latest sanitized
+`NegotiationResponse`, or `null` before a run. Requires request participation;
+unauthenticated callers receive 401 and other users receive 404. Reads existing
+idempotency receipts without invoking inference or creating plans. The embedded
+proposal is a negotiation snapshot; use overview for current approvals/status.
+
+Responses add optional `candidate_count` (eligible option records, not unique
+slots) and `outcome_code`: `no_eligible_options`, `no_new_options`, `agents_no_match`, `round_limit`,
+or null. Zero-option runs skip inference. Codes do not disclose another
+participant's private constraints or the exact restriction excluding a plan.
+Old receipts may omit these fields.
+
+Subsequent negotiations exclude exact activity/start/end combinations already
+proposed for that request, including declined plans. Alternatives include starts
+at 30-minute offsets inside currently authorized free intervals. The model sees
+at most 48 new exact choices per run; all output is revalidated against fresh
+availability. `no_new_options` means eligible intervals exist but no unseen choice
+remains on this search grid. Idempotent retries still replay their original result.
+
+`POST /hangout-requests/{id}/negotiate?variation=different_time` excludes every
+previously suggested start instant, across activities and durations. The default
+`variation=any` excludes only exact prior plans. Unknown variations return 422;
+the idempotency key binds the variation so a retry cannot change its meaning.
+Both modes preserve existing proposals and require fresh human approvals for new
+ones. This is request-specific feedback and does not change saved preferences.

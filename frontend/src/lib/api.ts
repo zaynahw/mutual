@@ -201,15 +201,20 @@ export const listOverviews = (userId: string, signal: AbortSignal) =>
 export const replanProposal = (userId: string, id: string, signal: AbortSignal) =>
   requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}/replan`, { userId, signal, method: 'POST' });
 
+export const getNegotiation = (userId: string, requestId: string, signal: AbortSignal) =>
+  requestJson<NegotiationResponse | null>(`/hangout-requests/${encodeURIComponent(requestId)}/negotiation`, {userId, signal});
+
 export interface NegotiationResponse {
+  candidate_count?: number | null;
+  outcome_code?: "no_eligible_options" | "no_new_options" | "agents_no_match" | "round_limit" | null;
   status: 'agreed' | 'no_match' | 'exhausted';
   source: 'local_agent' | 'demo_fallback' | 'mock';
   proposal: Proposal | null;
   turns: { actor_id: string; decision: 'propose' | 'counter' | 'accept' | 'no_match'; activity: Activity | null; slot: Interval | null }[];
 }
-export async function negotiateHangout(userId: string, requestId: string, signal: AbortSignal) {
-  const retry = await creationKey(userId, `negotiate:${requestId}`, {});
-  const result = await requestJson<NegotiationResponse>(`/hangout-requests/${encodeURIComponent(requestId)}/negotiate`, {
+export async function negotiateHangout(userId: string, requestId: string, signal: AbortSignal, variation: 'any' | 'different_time' = 'any') {
+  const retry = await creationKey(userId, `negotiate:${requestId}`, variation==='any'?{}:{variation});
+  const result = await requestJson<NegotiationResponse>(`/hangout-requests/${encodeURIComponent(requestId)}/negotiate?variation=${variation}`, {
     userId, signal, method: 'POST', idempotencyKey: retry.key,
   });
   retry.confirmed();

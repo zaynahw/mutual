@@ -56,9 +56,10 @@ function Workspace({auth,authorize,signOut,authBusy}:{auth:AuthStatus;authorize:
   const [planError,setPlanError] = React.useState('');
   const [selected,setSelected] = React.useState<string|null>(null);
   const [autoRequest,setAutoRequest] = React.useState<string|null>(null);
+  const [matchingChoice,setMatchingChoice] = React.useState(false);
   const [plansLoading,setPlansLoading] = React.useState(true);
   React.useEffect(() => {
-    const controller = new AbortController();setError('');setProfile(null);setPlans([]);setSelected(null);setAutoRequest(null);
+    const controller = new AbortController();setError('');setProfile(null);setPlans([]);setSelected(null);setAutoRequest(null);setMatchingChoice(false);
     Promise.all([getMe(identity,controller.signal),listUsers(identity,controller.signal)])
       .then(([user,users]) => {if(!controller.signal.aborted) setProfile({user,users});})
       .catch(e => {if(!controller.signal.aborted) setError(e instanceof TypeError ? 'Cannot reach the backend on port 8000.' : e.message);});
@@ -94,6 +95,13 @@ function Workspace({auth,authorize,signOut,authBusy}:{auth:AuthStatus;authorize:
       {error && <div role="alert" className="demo-panel"><p>{error}</p><button onClick={() => setReload(n => n+1)}>Retry connection</button></div>}
       {!profile && !error && <p role="status">Loading your space…</p>}
       {profile && me && me.id===identity && <div key={identity}>
+        {auth.mode==='google' && auth.calendar_connected && me.matching.mode==='social_windows' && !matchingChoice && <section className="demo-panel space-y-3" aria-label="Choose social availability">
+          <h2>When are you open to plans?</h2>
+          <p>A free calendar doesn’t automatically mean you want company. Choose whether accepted friends’ agents can find plans during your personal hours, or keep matching limited to social windows you share.</p>
+          <MatchingPreferences user={me} onSaved={user => {updated(user);setMatchingChoice(true);}}/>
+          <button className="text-link" onClick={() => {setMatchingChoice(true);setPage('availability');}}>Keep social windows only and set them up</button>
+          <p>You can change this under Availability. Both people still approve every plan.</p>
+        </section>}
         <div hidden={page!=='overview'}>
           <section className="page-intro"><div><h1>Welcome, {me.display_name.replace(/\s*\(demo\)/i,'')}</h1><p className="intro-date">Make room for the people you want to see.</p></div><button className="primary-button" onClick={() => setPage('new')}>Start a plan</button></section>
           <div className="dashboard-grid">

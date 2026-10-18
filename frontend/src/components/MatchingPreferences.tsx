@@ -4,6 +4,7 @@ import type { User } from '../lib/api';
 
 export function MatchingPreferences({user,onSaved}: {user: User; onSaved:(user:User)=>void}) {
   const [settings,setSettings] = React.useState(user.matching);
+  React.useEffect(() => setSettings(user.matching), [user.matching]);
   const [busy,setBusy] = React.useState(false);
   const [notice,setNotice] = React.useState('');
   const pending=React.useRef<AbortController|null>(null);

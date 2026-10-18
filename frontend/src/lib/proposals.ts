@@ -3,7 +3,16 @@ import type { Proposal } from './api';
 /** Keep stored history, but show only the unresolved options or agreed plan. */
 export function visibleProposals(proposals: Proposal[]): Proposal[] {
   const agreed = proposals.find(plan => plan.status === 'approved' || plan.status === 'scheduled');
-  return agreed ? [agreed] : proposals.filter(plan => plan.status !== 'declined' && plan.status !== 'cancelled');
+  if (agreed) return [agreed];
+  const seen = new Set<string>();
+  return proposals.filter(plan => {
+    if (plan.status === 'declined' || plan.status === 'cancelled') return false;
+    // Legacy duplicate records keep their own approvals; display one stable ID.
+    const key = plan.slot ? JSON.stringify([plan.activity, Date.parse(plan.slot.start), Date.parse(plan.slot.end), plan.location || '']) : plan.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 
