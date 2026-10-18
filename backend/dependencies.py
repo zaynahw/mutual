@@ -11,6 +11,7 @@ from backend.repositories import get_user
 from backend.hangouts import get_hangout_request
 from backend.services.calendar_adapter import CalendarAdapter
 from backend.services.demo_calendar import DemoCalendarAdapter
+from backend.services.agent_adapter import AgentAdapter, build_agent_adapter
 
 
 def get_current_user(
@@ -58,3 +59,7 @@ def get_participant_proposal(proposal_id: str, current_user: CurrentUser) -> Pro
 
 
 ParticipantProposal = Annotated[Proposal, Depends(get_participant_proposal)]
+
+
+def get_agent_adapter() -> AgentAdapter:
+    return build_agent_adapter()

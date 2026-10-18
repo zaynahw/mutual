@@ -55,6 +55,10 @@ class Preferences(Model):
     soft_preference_note: str = Field(default="", max_length=1000)
 
 
+class PreferenceNoteUpdate(Model):
+    soft_preference_note: str = Field(max_length=1000)
+
+
 class HardConstraints(Model):
     allowed_activities: list[Activity] = Field(min_length=1)
     max_duration_minutes: DurationMinutes = 120
@@ -199,6 +203,7 @@ class ProposalCreate(Model):
 
 
 class Proposal(ProposalCreate):
+    source: Literal["manual", "local_agent", "demo_fallback", "mock"] = "manual"
     id: str
     request_id: str
     location: str | None = Field(default=None, max_length=200)
@@ -228,3 +233,17 @@ class CalendarEventResponse(Model):
 class HangoutOverview(Model):
     request: HangoutRequest
     proposals: list[ProposalResponse]
+
+
+class PublicNegotiationTurn(Model):
+    actor_id: DemoUserId
+    decision: Literal["propose", "counter", "accept", "no_match"]
+    activity: Activity | None = None
+    slot: CandidateSlot | None = None
+
+
+class NegotiationResponse(Model):
+    status: Literal["agreed", "no_match", "exhausted"]
+    source: Literal["local_agent", "demo_fallback", "mock"]
+    proposal: Proposal | None = None
+    turns: list[PublicNegotiationTurn] = Field(default_factory=list)

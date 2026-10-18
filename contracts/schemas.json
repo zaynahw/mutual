@@ -73,6 +73,21 @@
     "title": "Preferences",
     "type": "object"
   },
+  "PreferenceNoteUpdate": {
+    "additionalProperties": false,
+    "properties": {
+      "soft_preference_note": {
+        "maxLength": 1000,
+        "title": "Soft Preference Note",
+        "type": "string"
+      }
+    },
+    "required": [
+      "soft_preference_note"
+    ],
+    "title": "PreferenceNoteUpdate",
+    "type": "object"
+  },
   "HardConstraints": {
     "additionalProperties": false,
     "properties": {
@@ -1170,6 +1185,17 @@
       "slot": {
         "$ref": "#/$defs/CandidateSlot"
       },
+      "source": {
+        "default": "manual",
+        "enum": [
+          "manual",
+          "local_agent",
+          "demo_fallback",
+          "mock"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
       "id": {
         "title": "Id",
         "type": "string"
@@ -1341,6 +1367,17 @@
           },
           "slot": {
             "$ref": "#/$defs/CandidateSlot"
+          },
+          "source": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "local_agent",
+              "demo_fallback",
+              "mock"
+            ],
+            "title": "Source",
+            "type": "string"
           },
           "id": {
             "title": "Id",
@@ -1580,6 +1617,17 @@
           "slot": {
             "$ref": "#/$defs/CandidateSlot"
           },
+          "source": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "local_agent",
+              "demo_fallback",
+              "mock"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -1663,6 +1711,284 @@
       "proposals"
     ],
     "title": "HangoutOverview",
+    "type": "object"
+  },
+  "PublicNegotiationTurn": {
+    "$defs": {
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "actor_id": {
+        "pattern": "^demo-[a-z0-9-]+$",
+        "title": "Actor Id",
+        "type": "string"
+      },
+      "decision": {
+        "enum": [
+          "propose",
+          "counter",
+          "accept",
+          "no_match"
+        ],
+        "title": "Decision",
+        "type": "string"
+      },
+      "activity": {
+        "anyOf": [
+          {
+            "enum": [
+              "coffee",
+              "meal",
+              "walk",
+              "study",
+              "concert"
+            ],
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Activity"
+      },
+      "slot": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CandidateSlot"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      }
+    },
+    "required": [
+      "actor_id",
+      "decision"
+    ],
+    "title": "PublicNegotiationTurn",
+    "type": "object"
+  },
+  "NegotiationResponse": {
+    "$defs": {
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "enum": [
+              "coffee",
+              "meal",
+              "walk",
+              "study",
+              "concert"
+            ],
+            "title": "Activity",
+            "type": "string"
+          },
+          "slot": {
+            "$ref": "#/$defs/CandidateSlot"
+          },
+          "source": {
+            "default": "manual",
+            "enum": [
+              "manual",
+              "local_agent",
+              "demo_fallback",
+              "mock"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location"
+          },
+          "status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "approved",
+              "declined",
+              "cancelled",
+              "scheduled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity",
+          "slot",
+          "id",
+          "request_id"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
+      "PublicNegotiationTurn": {
+        "additionalProperties": false,
+        "properties": {
+          "actor_id": {
+            "pattern": "^demo-[a-z0-9-]+$",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "propose",
+              "counter",
+              "accept",
+              "no_match"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "coffee",
+                  "meal",
+                  "walk",
+                  "study",
+                  "concert"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Activity"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CandidateSlot"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "actor_id",
+          "decision"
+        ],
+        "title": "PublicNegotiationTurn",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "status": {
+        "enum": [
+          "agreed",
+          "no_match",
+          "exhausted"
+        ],
+        "title": "Status",
+        "type": "string"
+      },
+      "source": {
+        "enum": [
+          "local_agent",
+          "demo_fallback",
+          "mock"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "proposal": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Proposal"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "turns": {
+        "items": {
+          "$ref": "#/$defs/PublicNegotiationTurn"
+        },
+        "title": "Turns",
+        "type": "array"
+      }
+    },
+    "required": [
+      "status",
+      "source"
+    ],
+    "title": "NegotiationResponse",
     "type": "object"
   }
 }

@@ -39,15 +39,15 @@ CORS permits the default frontend origin, `http://localhost:5173`.
 - Friend requests, accept/decline, removal, re-adding, and relationship history.
 - Audience-filtered schedules with independently controlled calendar sharing.
 - Hangout request creation/retrieval and deterministic activity-specific candidates.
-- A local Ollama time-slot ranker, callable through its adapter but not yet wired
-  to a negotiation route. See [agent setup](agent/README.md).
+- Bounded two-agent negotiation, with local Ollama, explicit deterministic fallback,
+  and mock modes. See [agent setup](agent/README.md).
 
 The separate `/demo.html` frontend supports profiles, friendships, social windows,
 visibility-aware schedule browsing, requests, candidates, proposals, approvals,
 replanning, and simulated event creation.
 The default calendar dependency uses simulated busy intervals. Google OAuth and
-real event creation are not wired in this checkout. Separate agent contexts,
-negotiation, and the calendar-sharing settings update route remain unfinished.
+real event creation are not wired in this checkout. The calendar-sharing settings update route remains unfinished.
+Negotiation uses isolated per-owner model contexts and still requires human approvals.
 Proposal creation, approval routes, and mock calendar finalization are implemented.
 
 ## Demo data and database
@@ -94,9 +94,10 @@ save an exact proposal. Submitting counts as your approval; the other participan
 can approve or decline. Select a request to review its options. Switch demo users and select the same request to respond as the other
 participant; no IDs need copying. Refresh this plan to see their latest response.
 People manages friendships; My availability manages social windows; Browse
-schedules tests visibility; My profile shows read-only settings. Sample dates
+schedules tests visibility; My profile lets you edit your private agent note; other settings are read-only. Sample dates
 are October 18, 2026, and times use the selected profile timezone. Calendars are
-mocked. Agent calls are not wired yet. After both approvals, Add to demo calendar runs a
+mocked. Let agents suggest a plan runs mock negotiation by default. See agent/README.md
+for real Ollama inference. After both approvals, Add to demo calendar runs a
 final availability check and saves a simulated event. Google is not connected. Decisions cannot be changed. Use Replan on an unscheduled agreed plan to close old
 options and request fresh approvals. Scheduled events cannot be replanned here.
 
@@ -109,3 +110,13 @@ identity; switching identities clears that UI state. Request cards show status,
 time, and location. No-match results link to availability, friendships, and a revised
 search. Selected-friends windows can be created/edited using accepted friendships.
 Simulated scheduled events count as busy for both participants on later searches.
+
+Agent-generated proposals require both human approvals; manually submitting an
+exact plan records the submitter's approval. Proposal source labels distinguish
+manual, local AI, deterministic fallback, and mock suggestions. The public agent
+trace omits private reasons. Ollama must run separately for local inference.
+
+To try private soft preferences: open My profile, edit and save the note, then
+run a new agent suggestion from My plans. Repeat as the other demo user to give
+each agent its own preferences. Activity, duration, and time-of-day preferences
+can guide choices among existing valid options; existing proposals stay unchanged.

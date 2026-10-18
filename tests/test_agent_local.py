@@ -115,3 +115,21 @@ def test_build_agent_adapter(monkeypatch):
     monkeypatch.setenv("AGENT_ADAPTER", "mock")
     assert isinstance(build_agent_adapter(), MockAgentAdapter)
     assert isinstance(build_agent_adapter("local"), LocalAgentAdapter)
+
+
+def test_structured_schema_is_sent_and_truncated_output_is_rejected(monkeypatch):
+    from agent.local_llm import LocalLLMError
+    from agent.schemas import MODEL_DECISION
+    captured = []
+    def request(self, method, path, *, body=None):
+        captured.append(body)
+        return {'message': {'content': '{"decision":"no_match"}'}}
+    monkeypatch.setattr(LocalLLM, '_request', request)
+    schema = MODEL_DECISION.json_schema()
+    result = LocalLLM().chat([{'role':'user','content':'choose'}],format=schema,temperature=0,num_predict=350)
+    assert json.loads(result)['decision'] == 'no_match'
+    assert captured[0]['format'] == schema
+    assert captured[0]['options'] == {'temperature':0,'num_predict':350}
+    monkeypatch.setattr(LocalLLM, '_request', lambda *a,**k: {'done_reason':'length','message':{'content':'{"decision":'}})
+    with pytest.raises(LocalLLMError, match='token limit'):
+        LocalLLM().chat([{'role':'user','content':'choose'}],format=schema)

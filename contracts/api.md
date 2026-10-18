@@ -66,12 +66,15 @@ All timestamps are timezone-aware ISO 8601. Intervals are half-open [start,end);
 | GET /hangout-requests/overview | none | 200 HangoutOverview[] | Caller’s requests and proposal/approval summaries only; consistent read snapshot |
 | POST /proposals/{id}/replan | none | 200 ProposalResponse | Either participant; cancel unscheduled active options for this request; preserve history; calendar-write uncertainty returns 409 |
 
+| POST /hangout-requests/{id}/negotiate | none; required Idempotency-Key header | 200 NegotiationResponse | Participants only; agreed/no_match/exhausted; pending saved recommendation has zero human approvals; validated again after inference |
+
+| PATCH /users/me/preferences | PreferenceNoteUpdate | 200 User | Owner only; updates only soft_preference_note; max 1000 characters; empty string clears |
+
 ## Planned routes (not available)
 
 | Method/path | Request schema | Success response | Rules |
 |---|---|---|---|
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
-| POST /hangout-requests/{id}/negotiate | none | 201 Proposal | Explicit user action; backend coordinates agents and validates result; 409 if no match |
 
 OAuth routes belong to the calendar lane and are not wired in this checkout.
 No GET /users/{id}/friends endpoint exists; accepted relationships are available
@@ -181,18 +184,16 @@ an already-created event from its own conflict check) before claiming full recov
 
 CalendarAdapter exposes async get_busy(user_id, search) and
 create_event(proposal, participant_ids, idempotency_key). The default dependency
-in backend/dependencies.py returns a fixture-backed MockCalendarAdapter. Override
+in backend/dependencies.py returns a fixture-backed DemoCalendarAdapter. Override
 that dependency for Google integration/tests. It never exposes OAuth tokens or
 calendar metadata through schedule responses.
 
-AgentAdapter exposes evaluate(request, candidates). MockAgentAdapter preserves
-input order; LocalAgentAdapter calls the teammate-owned Ollama ranker. Local
-ranking is implemented, but no negotiation route invokes it. Zero/one candidate
-skips inference; fallback returns input order on errors by default. It does not
-yet handle private per-user contexts, activity-aware choices, counteroffers, or
-no-match negotiation. Coordinate that contract with the agent owner before wiring.
-Only permitted proposals should pass between personal contexts, never raw private
-notes. Backend validation and human approvals remain authoritative.
+AgentAdapter exposes legacy evaluate(request, candidates) plus the integrated
+negotiate(request, options, requester_ctx, invitee_ctx, max_rounds). LocalAgentAdapter
+uses the teammate-owned Ollama negotiation loop; MockAgentAdapter uses a labeled
+deterministic agreement. Separate owner contexts and structured pending offers
+prevent private explanations from being forwarded. Backend validation and human
+approvals remain authoritative. See Agent negotiation below for the public API.
 
 ## Errors
 
@@ -242,3 +243,41 @@ the demo explicitly labels this action rather than modifying approved history.
 
 The default demo adapter includes completed demo-event bookings in both participants’
 free/busy results. The standalone MockCalendarAdapter remains fixture-only for tests.
+
+## Agent negotiation
+
+The backend supplies HangoutRequest, authorized CandidateOption[] and separate
+OwnerPrivateContext values to AgentAdapter.negotiate. Each local model call gets
+only its owner's context. Pending offers contain structured choices, never raw
+reasons. Backend does not expose private notes, model explanations, or raw errors.
+
+NegotiationResponse contains status (agreed/no_match/exhausted), source
+(local_agent/demo_fallback/mock), optional saved Proposal, and structured turns
+(actor_id, decision, optional activity/slot). Proposal.source also persists this
+origin; existing and manual records default to manual. Public turns have no reason.
+Any fallback turn labels the whole outcome demo_fallback. Source mock means no
+inference. No candidates skip inference; no_match/exhausted save no proposal.
+
+Agent-generated proposals require both humans to approve. Unlike manual creation,
+calling negotiate does not count as human approval. Final recommendations must fit
+both the original options and freshly generated candidates. A settled request or
+stale recommendation returns 409. Inference failures/120-second total timeouts
+return a generic 502 with manual selection still available. The round budget is
+read from AGENT_MAX_ROUNDS and capped at three review turns plus an opening offer.
+
+Negotiation keys use the existing 1–128 ASCII character format. Actor-scoped
+receipts save the original sanitized response in the same transaction as proposal
+insertion, preventing duplicate proposals on retries. Use a new key for a new
+negotiation; GET overview reflects subsequent human decisions. Live inference
+requires AGENT_ADAPTER=local and running Ollama; default mock needs no model.
+
+## Private preference notes
+
+PATCH /users/me/preferences accepts {"soft_preference_note":"..."}. Identity is
+selected by the demo header; user IDs and unrelated settings in the body are
+rejected. The update reads current profile JSON and changes only that field in a
+transaction. Public profiles/schedule projections continue to omit notes. New
+negotiations load the saved owner note; existing proposals and approvals do not
+change. Notes guide choices among valid candidates and never override hard rules.
+The full UserSettings update route remains planned; this endpoint is intentionally
+limited to the note. Demo UI editor is under My profile.

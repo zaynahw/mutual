@@ -7,6 +7,7 @@ import { SocialWindows } from './components/SocialWindows';
 import { Friendships } from './components/Friendships';
 import { ScheduleViewer } from './components/ScheduleViewer';
 import { HangoutRequests } from './components/HangoutRequests';
+import { PrivatePreferences } from './components/PrivatePreferences';
 
 const demoUsers = [
   { id: 'demo-zaynah', name: 'Zaynah' },
@@ -83,7 +84,7 @@ function App() {
       {(panel.status === 'loading' || (panel.status === 'ready' && panel.selectedId !== selectedId)) && <p role="status">Loading profiles…</p>}
       {profileError && panel.status === 'ready' && <p role="alert" className="text-red-800">{profileError} Your current draft is preserved.</p>}
       {panel.status === 'error' && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-800">{panel.message}</p>}
-      {panel.status === 'ready' && panel.selectedId === selectedId && tab === 'profile' && <div className="grid gap-6 md:grid-cols-2">
+      {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'profile'}><div className="grid gap-6 md:grid-cols-2">
         <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-6">
           <h2 className="text-2xl font-semibold">People</h2>
           <p className="text-sm text-stone-600">Public profiles only. Private preferences and settings are excluded.</p>
@@ -97,17 +98,17 @@ function App() {
         </section>
         <section className="space-y-5 rounded-xl border border-stone-200 bg-white p-6">
           <h2 className="text-2xl font-semibold">My profile</h2>
-          <p className="text-sm text-stone-600">Owner-only settings for {panel.me.display_name}. Read-only for now.</p>
+          <p className="text-sm text-stone-600">Private preferences for {panel.me.display_name}. Other profile settings are read-only.</p>
           <dl className="space-y-4">
             <div><dt className="text-sm text-stone-500">Timezone</dt><dd>{panel.me.timezone}</dd></div>
             <div><dt className="text-sm text-stone-500">Calendar sharing</dt><dd>{panel.me.calendar_sharing.audience.replaceAll('_', ' ')}</dd></div>
             <div><dt className="text-sm text-stone-500">Preferred activities</dt><dd>{panel.me.preferences.preferred_activities.join(', ') || 'None selected'}</dd></div>
-            <div><dt className="text-sm text-stone-500">Private preference note</dt><dd>{panel.me.preferences.soft_preference_note || 'None'}</dd></div>
             <div><dt className="text-sm text-stone-500">Allowed activities · hard constraint</dt><dd>{panel.me.hard_constraints.allowed_activities.join(', ')}</dd></div>
             <div><dt className="text-sm text-stone-500">Maximum duration · hard constraint</dt><dd>{panel.me.hard_constraints.max_duration_minutes} minutes</dd></div>
           </dl>
+          <PrivatePreferences key={`preferences-${selectedId}`} user={panel.me} onSaved={updated => setPanel(previous => previous.status === 'ready' && previous.selectedId === updated.id ? {...previous,me:updated} : previous)} />
         </section>
-      </div>}
+      </div></div>}
       {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'people'}><Friendships key={`friendships-${selectedId}`} currentUser={panel.me} users={panel.users} active={tab === 'people'} /></div>}
       {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'availability'}><SocialWindows key={`windows-${selectedId}`} user={panel.me} users={panel.users} active={tab === 'availability'} /></div>}
       {panel.status === 'ready' && panel.selectedId === selectedId && <div hidden={tab !== 'schedules'}><ScheduleViewer key={`schedule-${selectedId}`} user={panel.me} users={panel.users} /></div>}

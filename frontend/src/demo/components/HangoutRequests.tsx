@@ -1,6 +1,6 @@
 import React from 'react';
-import { createProposal, getCandidates, listOverviews } from '../lib/api';
-import type { Activity, CandidateOption, Duration, HangoutOverview, HangoutRequest, ProposalResponse, PublicUser, User } from '../lib/api';
+import { createProposal, getCandidates, listOverviews, negotiateHangout } from '../lib/api';
+import type { Activity, CandidateOption, Duration, HangoutOverview, HangoutRequest, NegotiationResponse, ProposalResponse, PublicUser, User } from '../lib/api';
 import { visibleProposals, planStatus } from '../lib/proposals';
 import { ProposalViewer } from './ProposalViewer';
 import { HangoutForm } from './HangoutForm';
@@ -36,6 +36,8 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [showForm, setShowForm] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [negotiation, setNegotiation] = React.useState<{requestId: string; result: NegotiationResponse} | null>(null);
+  const [negotiating, setNegotiating] = React.useState(false);
   const [notice, setNotice] = React.useState('');
   const [error, setError] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -103,9 +105,9 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
         <button disabled={busy || loading} onClick={() => {setNotice('');setShowForm(true);}}>New hangout</button>
       </div>
     </div>
-    <p className="text-sm text-stone-600">Mock calendars · manual plan selection · times in {user.timezone}</p>
+    <p className="text-sm text-stone-600">Mock calendars · manual or agent suggestions · times in {user.timezone}</p>
     {loading && <p role="status">Refreshing plans…</p>}
-    {busy && <p role="status">Working…</p>}
+    {busy && <p role="status">{negotiating ? 'Agents are considering the options… This may take up to two minutes.' : 'Working…'}</p>}
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-teal-50 p-3">{notice}</p>}
     {!loading && !error && overviews.length === 0 && <p>No plans yet. Choose New hangout to start.</p>}
@@ -139,8 +141,29 @@ export function HangoutRequests({ user, users, active, onNavigate }: {
           </div>}
           {!agreed && <div className="space-y-3">
             {!visible.length && <p>No active proposal yet. Find times below or revise your search.</p>}
+            <button disabled={busy || loading} onClick={() => {
+              const requestId = selected.request.id;
+              setNegotiation(null);
+              void run(async signal => {
+                setNegotiating(true);
+                try {
+                  const result = await negotiateHangout(user.id,requestId,signal);
+                  if (!signal.aborted) {
+                    setNegotiation({requestId,result});
+                    if (result.proposal) {setProposalId(result.proposal.id);setOptions(null);}
+                    await refresh();
+                  }
+                } finally {if (!signal.aborted) setNegotiating(false);}
+              });
+            }}>Let agents suggest a plan</button>
+            <p className="text-sm text-stone-600">Agent suggestions need both humans’ approval. Mock and fallback results are explicitly labeled.</p>
             <button disabled={busy || loading} onClick={() => findTimes(selected.request)}>{visible.length ? 'Find another option' : 'Find available times'}</button>
           </div>}
+          {negotiation?.requestId === selected.request.id && <section className="demo-choice space-y-2" aria-label="Agent negotiation result">
+            <h3>{negotiation.result.source === 'mock' ? 'Mock negotiation — no AI inference' : negotiation.result.source === 'demo_fallback' ? 'Deterministic fallback — not a full AI negotiation' : 'Local AI negotiation'}</h3>
+            <p>{negotiation.result.status === 'agreed' ? 'Suggested plan saved. Both humans must approve before scheduling.' : negotiation.result.status === 'exhausted' ? 'The agents did not agree within the round limit. Try manual selection.' : 'No acceptable plan was found. Check availability or try manual selection.'}</p>
+            <ol>{negotiation.result.turns.map((turn,index) => <li key={index}>{name(turn.actor_id)}’s agent: {turn.decision}{turn.activity ? ` · ${turn.activity}` : ''}{turn.slot ? ` · ${dateTime(turn.slot.start,user.timezone)}` : ''}</li>)}</ol>
+          </section>}
           {options?.requestId === selected.request.id && !agreed && (options.items.length === 0 ? <div className="demo-choice space-y-3">
             <h3>No compatible times found</h3><p>Both people need overlapping social availability with compatible activities and duration. Calendar conflicts and visibility also apply. Private reasons are not disclosed.</p>
             <div className="flex flex-wrap gap-2">

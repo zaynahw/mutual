@@ -43,6 +43,21 @@ def list_users() -> list[User]:
     return [User.model_validate_json(row["data"]) for row in rows]
 
 
+def update_preference_note(user_id: str, note: str) -> User:
+    """Read current settings and update only the owner's note atomically."""
+    with connect() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute('SELECT data FROM users WHERE id = ?', (user_id,)).fetchone()
+        if row is None:
+            raise LookupError('User not found')
+        current = User.model_validate_json(row['data'])
+        data = current.model_dump()
+        data['preferences']['soft_preference_note'] = note
+        updated = User.model_validate(data)
+        connection.execute('UPDATE users SET data = ? WHERE id = ?', (updated.model_dump_json(), user_id))
+        return updated
+
+
 def create_social_window(window: SocialWindow) -> None:
     """Insert only: duplicate IDs and unknown owners are integrity errors."""
     with connect() as connection:

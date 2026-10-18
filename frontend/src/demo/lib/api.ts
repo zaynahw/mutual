@@ -28,7 +28,7 @@ const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').r
 interface RequestOptions {
   userId?: string;
   signal?: AbortSignal;
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   idempotencyKey?: string;
 }
@@ -155,6 +155,7 @@ export interface CandidateOption {
 }
 export interface ProposalInput { activity: Activity; slot: Interval }
 export interface Proposal extends ProposalInput {
+  source: 'manual' | 'local_agent' | 'demo_fallback' | 'mock';
   id: string;
   request_id: string;
   location: string | null;
@@ -201,3 +202,21 @@ export const listOverviews = (userId: string, signal: AbortSignal) =>
   requestJson<HangoutOverview[]>('/hangout-requests/overview', { userId, signal });
 export const replanProposal = (userId: string, id: string, signal: AbortSignal) =>
   requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}/replan`, { userId, signal, method: 'POST' });
+
+export interface NegotiationResponse {
+  status: 'agreed' | 'no_match' | 'exhausted';
+  source: 'local_agent' | 'demo_fallback' | 'mock';
+  proposal: Proposal | null;
+  turns: { actor_id: string; decision: 'propose' | 'counter' | 'accept' | 'no_match'; activity: Activity | null; slot: Interval | null }[];
+}
+export async function negotiateHangout(userId: string, requestId: string, signal: AbortSignal) {
+  const retry = await creationKey(userId, `negotiate:${requestId}`, {});
+  const result = await requestJson<NegotiationResponse>(`/hangout-requests/${encodeURIComponent(requestId)}/negotiate`, {
+    userId, signal, method: 'POST', idempotencyKey: retry.key,
+  });
+  retry.confirmed();
+  return result;
+}
+
+export const updatePreferenceNote = (userId: string, note: string, signal: AbortSignal) =>
+  requestJson<User>('/users/me/preferences', {userId,signal,method:'PATCH',body:{soft_preference_note:note}});

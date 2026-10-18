@@ -1,11 +1,11 @@
-"""Read-only public directory and private owner profile."""
+"""Public directory and owner-only profile/preferences."""
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.dependencies import CurrentUser, get_calendar_adapter
-from backend.models import Interval, PublicUser, ScheduleResponse, User
-from backend.repositories import get_user, list_users
+from backend.models import Interval, PreferenceNoteUpdate, PublicUser, ScheduleResponse, User
+from backend.repositories import get_user, list_users, update_preference_note
 from backend.services.calendar_adapter import CalendarAdapter
 from backend.services.schedule import CalendarUnavailable, build_schedule
 
@@ -24,6 +24,14 @@ def get_users(current_user: CurrentUser) -> list[PublicUser]:
 @router.get("/me", response_model=User)
 def get_me(current_user: CurrentUser) -> User:
     return current_user
+
+
+@router.patch("/me/preferences", response_model=User)
+def edit_preference_note(body: PreferenceNoteUpdate, current_user: CurrentUser) -> User:
+    try:
+        return update_preference_note(current_user.id, body.soft_preference_note)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail="User not found") from error
 
 
 @router.get("/{user_id}/schedule", response_model=ScheduleResponse)

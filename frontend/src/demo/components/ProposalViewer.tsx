@@ -35,6 +35,7 @@ export function ProposalViewer({ user, users, value, onChange, onRefresh }: {
     </div>
     {busy && <p role="status">Saving…</p>}
     {error && <p role="alert">{error}</p>}
+    <p className="text-sm font-medium">Source: {{manual:'Manually proposed',local_agent:'Local AI negotiation',demo_fallback:'Deterministic fallback',mock:'Mock negotiation — no AI inference'}[result.proposal.source]}</p>
     <p className="text-xl font-semibold capitalize">{result.proposal.activity}</p>
     <p>{dateTime(result.proposal.slot.start, user.timezone)} – {dateTime(result.proposal.slot.end, user.timezone)}</p>
     <p>Location: {result.proposal.location || 'To be arranged'}</p>

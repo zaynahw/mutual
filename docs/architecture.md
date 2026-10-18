@@ -25,11 +25,11 @@ Create hangout request -> load both profiles and permitted windows
 ```
 
 Manual exact proposals, two independent approvals, final permission/conflict
-checks, and mock calendar finalization are implemented. Agent evaluation/negotiation
-and real Google event creation remain integration work. The current local agent ranks plain time intervals; it does not implement
-separate personal contexts, activity/duration compromises, or a no-match exchange.
-Its default failure fallback returns the original slot order; disable fallback
-when proving real inference. Coordinate agent changes with its owner.
+checks, and mock calendar finalization are implemented. Bounded agent negotiation
+is also wired: each owner gets a separate context, and agents propose, counter,
+accept, or stop without a match. Recommendations are advisory and need both human
+approvals. Fallback is explicitly labeled; disable it when proving real inference.
+Real Google event creation remains integration work.
 
 ## Code map
 
@@ -140,7 +140,7 @@ in SQLite. Replace/override get_calendar_adapter for Google integration. Do not
 expose calendar event titles, descriptions, locations, credentials, or raw errors.
 Real OAuth/account mapping and event retry behavior require integration work.
 
-Each future personal agent should receive only its owner's private context;
+Each personal agent receives only its owner's private context;
 agent-to-agent exchange should contain limited permitted plans/counteroffers.
 The backend must revalidate outputs and enforce two approvals of one immutable
 proposal before writing an event. Model/schema presence does not mean these
@@ -202,3 +202,24 @@ against calendar claims, closes pending/approved alternatives as cancelled, and 
 history intact. external_started prevents cancellation after an ambiguous provider
 write; only failures known to precede a provider write are immediately replan-safe.
 DemoCalendarAdapter overlays completed simulated bookings on fixture free/busy data.
+
+## Agent integration
+
+The agent code from 69c7c03 is integrated without replacing the teammate's model.
+services/negotiation.py supplies backend-filtered options and isolated owner
+contexts through AgentAdapter.negotiate. Raw reasons stay internal and are not
+forwarded to the other agent or the API. The model loop is bounded; the backend
+caps review rounds at three and waits up to 120 seconds. It revalidates the exact
+recommendation against both original and fresh options, then negotiations.py
+atomically stores a pending proposal and sanitized retry receipt. No human
+approvals are created. Source is persisted on Proposal; any fallback turn marks
+the result as demo_fallback. The demo button displays safe structured turns and
+keeps manual selection available. Agent errors are generic, with no raw prompts.
+
+Private preference notes are editable through PATCH /users/me/preferences using
+PreferenceNoteUpdate. The transactional repository update reloads current settings,
+changes only soft_preference_note, and validates the complete User before saving.
+The demo PrivatePreferences component retains drafts while navigating same-user
+tabs and aborts pending UI work on identity change. The note is loaded by the
+existing owner_context_from_user mapper for new negotiations only; it does not
+mutate proposals, grants, or approvals. No full settings editor was introduced.
