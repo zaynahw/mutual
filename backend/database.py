@@ -88,7 +88,98 @@ def initialize_database() -> None:
             CREATE INDEX IF NOT EXISTS social_windows_user_id
             ON social_windows(user_id);
 
+            CREATE TABLE IF NOT EXISTS hangout_requests (
+                id TEXT PRIMARY KEY NOT NULL,
+                requester_id TEXT NOT NULL,
+                invitee_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                FOREIGN KEY (requester_id) REFERENCES users(id),
+                FOREIGN KEY (invitee_id) REFERENCES users(id),
+                CHECK (requester_id != invitee_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS hangout_requests_requester
+            ON hangout_requests(requester_id);
+
+            CREATE INDEX IF NOT EXISTS hangout_requests_invitee
+            ON hangout_requests(invitee_id);
+
+            CREATE TABLE IF NOT EXISTS proposals (
+                id TEXT PRIMARY KEY NOT NULL,
+                request_id TEXT NOT NULL,
+                data TEXT NOT NULL,
+                FOREIGN KEY (request_id) REFERENCES hangout_requests(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS proposals_request
+            ON proposals(request_id);
+
+            CREATE TABLE IF NOT EXISTS approvals (
+                proposal_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                decision TEXT NOT NULL CHECK (decision IN ('approve', 'decline')),
+                decided_at TEXT NOT NULL,
+                PRIMARY KEY (proposal_id, user_id),
+                FOREIGN KEY (proposal_id) REFERENCES proposals(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS calendar_events (
+                proposal_id TEXT PRIMARY KEY NOT NULL REFERENCES proposals(id),
+                status TEXT NOT NULL CHECK (status IN ('creating', 'retryable', 'completed')),
+                claim_token TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                event_id TEXT,
+                external_started INTEGER NOT NULL DEFAULT 0 CHECK (external_started IN (0, 1)),
+                CHECK ((status = 'completed' AND event_id IS NOT NULL)
+                    OR (status != 'completed' AND event_id IS NULL))
+            );
+
+            CREATE TABLE IF NOT EXISTS hangout_intents (
+                id TEXT PRIMARY KEY NOT NULL,
+                owner_id TEXT NOT NULL REFERENCES users(id),
+                data TEXT NOT NULL,
+                request_id TEXT REFERENCES hangout_requests(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS google_accounts (
+                subject TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT UNIQUE NOT NULL REFERENCES users(id),
+                email TEXT NOT NULL,
+                credentials TEXT
+            );
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                token_hash TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL REFERENCES users(id),
+                expires_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS oauth_states (
+                state_hash TEXT PRIMARY KEY NOT NULL,
+                browser_hash TEXT NOT NULL,
+                data TEXT NOT NULL,
+                expires_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS creation_receipts (
+                actor_id TEXT NOT NULL REFERENCES users(id),
+                key TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                payload_hash TEXT NOT NULL,
+                response TEXT NOT NULL,
+                PRIMARY KEY (actor_id, key)
+            );
+
+            CREATE TABLE IF NOT EXISTS calendar_event_keys (
+                idempotency_key TEXT PRIMARY KEY NOT NULL,
+                proposal_id TEXT NOT NULL REFERENCES proposals(id)
+            );
+
         """)
+
+        columns = {row['name'] for row in connection.execute('PRAGMA table_info(calendar_events)')}
+        if 'external_started' not in columns:
+            # Existing attempts may already have reached the provider. Be conservative.
+            connection.execute('ALTER TABLE calendar_events ADD COLUMN external_started INTEGER NOT NULL DEFAULT 1')
+            connection.commit()
 
         # SQLite cannot alter a CHECK constraint in place. Serialize setup and
         # rebuild only the old friendship table, retaining every existing row.

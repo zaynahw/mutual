@@ -1,13 +1,15 @@
+import { creationKey } from './creationKeys';
 // These types mirror backend/models.py. The API contract is the source of truth.
 export type Activity = 'coffee' | 'meal' | 'walk' | 'study' | 'concert';
 export interface PublicUser {
   id: string;
   display_name: string;
-  is_demo: true;
-  community: 'georgia_tech';
+  is_demo: boolean;
+  community: 'georgia_tech' | null;
 }
 export interface User extends PublicUser {
   timezone: string;
+  matching: {mode: "social_windows" | "calendar_guided"; start_hour: number; end_hour: number};
   calendar_sharing: {
     audience: 'private' | 'community' | 'friends' | 'selected_friends';
     selected_friend_ids: string[];
@@ -27,26 +29,25 @@ const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').r
 interface RequestOptions {
   userId?: string;
   signal?: AbortSignal;
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  idempotencyKey?: string;
 }
 
 // All requests share identity headers and error handling. Callers decode JSON
 // only when a response body is expected (DELETE returns an empty 204).
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
-  const { userId, signal, method = 'GET', body } = options;
+  const { userId, signal, method = 'GET', body, idempotencyKey } = options;
   const response = await fetch(`${baseUrl}${path}`, {
-    method, signal,
+    method, signal, credentials: 'include',
     headers: {
-      ...(userId ? { 'X-Demo-User-Id': userId } : {}),
+      ...(userId?.startsWith('demo-') ? { 'X-Demo-User-Id': userId } : {}),
+      ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('Demo user unavailable. Run the backend seed command, then reload.');
-    }
     // A proxy/server failure may return HTML or no body instead of JSON.
     const data = await response.json().catch(() => null) as {
       detail?: string | { msg: string }[];
@@ -130,3 +131,120 @@ export const removeFriendship = (userId: string, requestId: string, signal: Abor
   requestJson<FriendRequest>(`${friendshipsPath}/${encodeURIComponent(requestId)}/remove`, {
     userId, signal, method: 'POST',
   });
+
+export interface Interval { start: string; end: string }
+export interface ScheduleResponse {
+  user: PublicUser;
+  social_windows: (Interval & { id: string; allowed_activities: Activity[] })[];
+  calendar_busy: Interval[] | null;
+}
+export type Duration = 30 | 60 | 90 | 120;
+export interface HangoutInput extends Interval {
+  invitee_id: string;
+  allowed_activities: Activity[];
+  allowed_durations: Duration[];
+  location: string | null;
+}
+export interface HangoutRequest extends HangoutInput { id: string; requester_id: string; origin: "manual" | "intent"; search_windows: Interval[] }
+export interface CandidateOption {
+  slot: Interval;
+  eligible_activities: Activity[];
+  eligible_durations: Duration[];
+}
+export interface ProposalInput { activity: Activity; slot: Interval }
+export interface Proposal extends ProposalInput {
+  source: 'manual' | 'local_agent' | 'demo_fallback' | 'mock';
+  id: string;
+  request_id: string;
+  location: string | null;
+  status: 'pending' | 'approved' | 'declined' | 'cancelled' | 'scheduled';
+}
+export interface ProposalResponse {
+  proposal: Proposal;
+  approvals: { proposal_id: string; user_id: string; decision: 'approve' | 'decline'; decided_at: string }[];
+}
+export const getSchedule = (userId: string, ownerId: string, range: Interval, signal: AbortSignal) =>
+  requestJson<ScheduleResponse>(`/users/${encodeURIComponent(ownerId)}/schedule?${new URLSearchParams({ ...range })}`, { userId, signal });
+export const listHangouts = (userId: string, signal: AbortSignal) =>
+  requestJson<HangoutRequest[]>('/hangout-requests', { userId, signal });
+export async function createHangout(userId: string, body: HangoutInput, signal: AbortSignal) {
+  const retry = await creationKey(userId, 'hangout', body);
+  const result = await requestJson<HangoutRequest>('/hangout-requests', { userId, signal, method: 'POST', body, idempotencyKey: retry.key });
+  retry.confirmed();
+  return result;
+}
+export const getCandidates = (userId: string, id: string, signal: AbortSignal) =>
+  requestJson<CandidateOption[]>(`/hangout-requests/${encodeURIComponent(id)}/candidates`, { userId, signal, method: 'POST' });
+export async function createProposal(userId: string, id: string, body: ProposalInput, signal: AbortSignal) {
+  const retry = await creationKey(userId, `proposal:${id}`, body);
+  const result = await requestJson<Proposal>(`/hangout-requests/${encodeURIComponent(id)}/proposals`, { userId, signal, method: 'POST', body, idempotencyKey: retry.key });
+  retry.confirmed();
+  return result;
+}
+export const getProposal = (userId: string, id: string, signal: AbortSignal) =>
+  requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}`, { userId, signal });
+export const decideProposal = (userId: string, id: string, decision: 'approve' | 'decline', signal: AbortSignal) =>
+  requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}/approvals`, {
+    userId, signal, method: 'POST', body: { decision },
+  });
+export const listProposals = (userId: string, requestId: string, signal: AbortSignal) =>
+  requestJson<Proposal[]>(`/hangout-requests/${encodeURIComponent(requestId)}/proposals`, { userId, signal });
+
+export const scheduleProposal = (userId: string, id: string, key: string, signal: AbortSignal) =>
+  requestJson<{ proposal_id: string; event_id: string }>(`/proposals/${encodeURIComponent(id)}/calendar-event`, {
+    userId, signal, method: 'POST', idempotencyKey: key,
+  });
+
+export interface HangoutOverview { request: HangoutRequest; proposals: ProposalResponse[] }
+export const listOverviews = (userId: string, signal: AbortSignal) =>
+  requestJson<HangoutOverview[]>('/hangout-requests/overview', { userId, signal });
+export const replanProposal = (userId: string, id: string, signal: AbortSignal) =>
+  requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}/replan`, { userId, signal, method: 'POST' });
+
+export const getNegotiation = (userId: string, requestId: string, signal: AbortSignal) =>
+  requestJson<NegotiationResponse | null>(`/hangout-requests/${encodeURIComponent(requestId)}/negotiation`, {userId, signal});
+
+export interface NegotiationResponse {
+  candidate_count?: number | null;
+  outcome_code?: "no_eligible_options" | "no_new_options" | "agents_no_match" | "round_limit" | null;
+  status: 'agreed' | 'no_match' | 'exhausted';
+  source: 'local_agent' | 'demo_fallback' | 'mock';
+  proposal: Proposal | null;
+  turns: { actor_id: string; decision: 'propose' | 'counter' | 'accept' | 'no_match'; activity: Activity | null; slot: Interval | null }[];
+}
+export async function negotiateHangout(userId: string, requestId: string, signal: AbortSignal, variation: 'any' | 'different_time' = 'any') {
+  const retry = await creationKey(userId, `negotiate:${requestId}`, variation==='any'?{}:{variation});
+  const result = await requestJson<NegotiationResponse>(`/hangout-requests/${encodeURIComponent(requestId)}/negotiate?variation=${variation}`, {
+    userId, signal, method: 'POST', idempotencyKey: retry.key,
+  });
+  retry.confirmed();
+  return result;
+}
+
+export const updatePreferenceNote = (userId: string, note: string, signal: AbortSignal) =>
+  requestJson<User>('/users/me/preferences', {userId,signal,method:'PATCH',body:{soft_preference_note:note}});
+
+export interface IntentInput { invitee_id: string; days: string[]; message: string }
+export interface IntentDraft {
+  id: string; owner_id: string; input: IntentInput; timezone: string; request_id: string|null;
+  result: {source: NegotiationResponse['source']; interpretation: {
+    activities: Activity[]; allowed_durations: Duration[]; preferred_periods: string[];
+    earliest: string|null; latest: string|null; clarification: string|null;
+  }};
+}
+export const interpretIntent = (userId: string,body: IntentInput,signal: AbortSignal) =>
+  requestJson<IntentDraft>('/hangout-intents/interpret',{userId,body,signal,method:'POST'});
+export const sendIntent = (userId: string,id: string,signal: AbortSignal) =>
+  requestJson<HangoutRequest>(`/hangout-intents/${encodeURIComponent(id)}/send`,{userId,signal,method:'POST'});
+export const updateMatching = (userId: string,body: User['matching'],signal: AbortSignal) =>
+  requestJson<User>('/users/me/matching',{userId,body,signal,method:'PATCH'});
+
+export interface AuthStatus {
+  mode: 'demo'|'google'; configured: boolean; authenticated: boolean;
+  user: User|null; calendar_mode:'mock'|'google'; calendar_connected:boolean;
+}
+export const getAuthStatus = (signal:AbortSignal) => requestJson<AuthStatus>('/auth/status',{signal});
+export const beginGoogle = (purpose:'login'|'calendar',signal:AbortSignal) => requestJson<{authorization_url:string}>('/auth/google/start',{
+  method:'POST',signal,body:{purpose,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone},
+});
+export const logout = (signal:AbortSignal) => request('/auth/logout',{method:'POST',signal});

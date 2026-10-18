@@ -12,3 +12,9 @@ __pycache__/
 *.sqlite*
 .DS_Store
 *.tsbuildinfo
+
+# Google client secrets and local token material
+backend/credentials.json
+backend/token.json
+*.token.json
+*.key

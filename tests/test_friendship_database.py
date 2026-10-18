@@ -5,13 +5,6 @@ import pytest
 
 from backend.database import connect, initialize_database
 from backend.models import FriendRequest
-from backend.seed import seed_demo_data
-
-
-@pytest.fixture
-def database(tmp_path, monkeypatch):
-    monkeypatch.setenv('MUTUAL_DATABASE_PATH', str(tmp_path / 'friends.db'))
-    seed_demo_data()
 
 
 def insert_request(request_id='friend-1', sender='demo-zaynah', recipient='demo-daniella',
@@ -25,7 +18,7 @@ def insert_request(request_id='friend-1', sender='demo-zaynah', recipient='demo-
         )
 
 
-def test_friend_record_survives_reinitialization(database):
+def test_friend_record_survives_reinitialization(seeded_database):
     insert_request()
     initialize_database()
     with connect() as connection:
@@ -37,14 +30,14 @@ def test_friend_record_survives_reinitialization(database):
 
 @pytest.mark.parametrize('status,responded_at', [('pending', None), ('accepted', '2026-10-17T15:00:00Z')])
 @pytest.mark.parametrize('reverse', [False, True])
-def test_active_pair_blocks_both_directions(database, status, responded_at, reverse):
+def test_active_pair_blocks_both_directions(seeded_database, status, responded_at, reverse):
     insert_request(status=status, responded_at=responded_at)
     sender, recipient = ('demo-daniella', 'demo-zaynah') if reverse else ('demo-zaynah', 'demo-daniella')
     with pytest.raises(sqlite3.IntegrityError):
         insert_request('friend-2', sender=sender, recipient=recipient)
 
 
-def test_decline_allows_new_request_and_keeps_history(database):
+def test_decline_allows_new_request_and_keeps_history(seeded_database):
     insert_request(status='declined', responded_at='2026-10-17T15:00:00Z')
     insert_request('friend-2', sender='demo-daniella', recipient='demo-zaynah')
     with connect() as connection:
@@ -57,12 +50,12 @@ def test_decline_allows_new_request_and_keeps_history(database):
     {'status': 'accepted'}, {'status': 'declined'},
     {'responded_at': '2026-10-17T15:00:00Z'},
 ])
-def test_invalid_relationship_state_rejected(database, changes):
+def test_invalid_relationship_state_rejected(seeded_database, changes):
     with pytest.raises(sqlite3.IntegrityError):
         insert_request(**changes)
 
 
-def test_existing_users_and_windows_survive_schema_setup(database):
+def test_existing_users_and_windows_survive_schema_setup(seeded_database):
     initialize_database()
     with connect() as connection:
         assert connection.execute('SELECT COUNT(*) FROM users').fetchone()[0] == 4

@@ -76,7 +76,7 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
               ? 'Busy'
               : block.type === 'social'
                 ? `Available: ${(block.activity_types || []).join(', ')}`
-                : `${block.activity} proposal, ${block.status}`;
+                : `${block.status === 'scheduled' ? 'Mutual hangout' : 'Suggested hangout'}: ${block.activity}, ${block.status}`;
             const proposalStyle = block.type === 'proposal'
               ? block.status === 'declined' || block.status === 'rejected'
                 ? 'rejected'

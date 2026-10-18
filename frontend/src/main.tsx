@@ -1,6 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { App } from './App';
+import './demo/style.css';
 import './style.css';
+import './integration.css';
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
 import { SocialWindows } from './components/SocialWindows';
 import { Friendships } from './components/Friendships';
 

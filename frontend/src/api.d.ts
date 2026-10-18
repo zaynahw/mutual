@@ -1,5 +1,15 @@
 export const USE_MOCKS: boolean;
 
+export interface ScheduleData {
+  user_id: string;
+  busy_intervals: {start:string;end:string}[];
+  social_windows: {start:string;end:string;activity_types:string[]}[];
+  proposals: {id:string;start:string;end:string;activity:string;status:string}[];
+}
+export const api: {getSchedule(userId:string,start:string,end:string):Promise<ScheduleData>};
+
+export const USE_MOCKS: boolean;
+
 export interface DashboardProposal {
   id: string;
   request_id: string;
@@ -42,16 +52,16 @@ export interface ScheduleInterval {
   end: string;
 }
 
-export interface ScheduleData {
-  user_id: string;
-  busy_intervals: ScheduleInterval[];
-  social_windows: Array<ScheduleInterval & { visible_to: string[]; activity_types: string[] }>;
-  proposals: Array<ScheduleInterval & {
-    id: string;
-    activity: string;
-    status: 'pending' | 'approved' | 'rejected' | 'declined' | 'scheduled';
-  }>;
-}
+// export interface ScheduleData {
+//   user_id: string;
+//   busy_intervals: ScheduleInterval[];
+//   social_windows: Array<ScheduleInterval & { visible_to: string[]; activity_types: string[] }>;
+//   proposals: Array<ScheduleInterval & {
+//     id: string;
+//     activity: string;
+//     status: 'pending' | 'approved' | 'rejected' | 'declined' | 'scheduled';
+//   }>;
+// }
 
 export const api: {
   checkHealth(): Promise<{ status: string }>;

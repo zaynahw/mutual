@@ -22,9 +22,17 @@ def ollama_timeout_seconds() -> float:
 
 
 def prefer_local_fallback() -> bool:
-    """If true, ranking failures fall back to input order instead of raising."""
+    """If true, ranking/negotiate failures fall back instead of raising."""
     return os.environ.get("AGENT_LOCAL_FALLBACK", "1").strip().lower() not in {
         "0",
         "false",
         "no",
     }
+
+
+def max_negotiate_rounds() -> int:
+    raw = os.environ.get("AGENT_MAX_ROUNDS", "3")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 3

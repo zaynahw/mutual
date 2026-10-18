@@ -8,20 +8,13 @@ from backend.database import connect
 from backend.friendships import (
     are_friends, create_friend_request, list_friend_requests, respond_to_friend_request,
 )
-from backend.seed import seed_demo_data
-
-
-@pytest.fixture
-def database(tmp_path, monkeypatch):
-    monkeypatch.setenv('MUTUAL_DATABASE_PATH', str(tmp_path / 'friendships.db'))
-    seed_demo_data()
 
 
 @pytest.mark.parametrize('sender,recipient', [
     ('demo-zaynah', 'demo-daniella'), ('demo-daniella', 'demo-zaynah'),
 ])
 @pytest.mark.parametrize('status', ['pending', 'accepted', 'declined'])
-def test_only_accepted_pairs_match_both_lookup_orders(database, sender, recipient, status):
+def test_only_accepted_pairs_match_both_lookup_orders(seeded_database, sender, recipient, status):
     responded_at = None if status == 'pending' else '2026-10-17T15:00:00Z'
     with connect() as connection:
         connection.execute(
@@ -36,13 +29,13 @@ def test_only_accepted_pairs_match_both_lookup_orders(database, sender, recipien
     assert are_friends(sender, sender) is False
 
 
-def test_empty_unknown_and_sql_like_ids_do_not_match(database):
+def test_empty_unknown_and_sql_like_ids_do_not_match(seeded_database):
     assert are_friends('demo-zaynah', 'demo-daniella') is False
     assert are_friends('demo-zaynah', 'demo-missing') is False
     assert are_friends("' OR 1=1 --", 'demo-zaynah') is False
 
 
-def test_create_is_pending_and_visible_to_both_participants_only(database):
+def test_create_is_pending_and_visible_to_both_participants_only(seeded_database):
     request = create_friend_request('demo-zaynah', 'demo-daniella')
     assert request.id.startswith('friend-')
     assert request.status == 'pending'
@@ -54,7 +47,7 @@ def test_create_is_pending_and_visible_to_both_participants_only(database):
     assert are_friends('demo-zaynah', 'demo-daniella') is False
 
 
-def test_list_includes_incoming_outgoing_in_stable_order(database):
+def test_list_includes_incoming_outgoing_in_stable_order(seeded_database):
     outgoing = create_friend_request('demo-zaynah', 'demo-daniella')
     incoming = create_friend_request('demo-mariann', 'demo-zaynah')
     create_friend_request('demo-kusum', 'demo-daniella')
@@ -64,7 +57,7 @@ def test_list_includes_incoming_outgoing_in_stable_order(database):
 
 
 @pytest.mark.parametrize('reverse', [False, True])
-def test_create_rejects_duplicate_pending_pairs_without_overwriting(database, reverse):
+def test_create_rejects_duplicate_pending_pairs_without_overwriting(seeded_database, reverse):
     original = create_friend_request('demo-zaynah', 'demo-daniella')
     sender, recipient = ('demo-daniella', 'demo-zaynah') if reverse else ('demo-zaynah', 'demo-daniella')
     with pytest.raises(sqlite3.IntegrityError):
@@ -72,7 +65,7 @@ def test_create_rejects_duplicate_pending_pairs_without_overwriting(database, re
     assert list_friend_requests('demo-zaynah') == [original]
 
 
-def test_self_request_fails_before_insert(database):
+def test_self_request_fails_before_insert(seeded_database):
     with pytest.raises(ValidationError):
         create_friend_request('demo-zaynah', 'demo-zaynah')
     assert list_friend_requests('demo-zaynah') == []
@@ -81,14 +74,14 @@ def test_self_request_fails_before_insert(database):
 @pytest.mark.parametrize('sender,recipient', [
     ('demo-missing', 'demo-zaynah'), ('demo-zaynah', 'demo-missing'),
 ])
-def test_unknown_participant_fails_without_insert(database, sender, recipient):
+def test_unknown_participant_fails_without_insert(seeded_database, sender, recipient):
     with pytest.raises(sqlite3.IntegrityError):
         create_friend_request(sender, recipient)
     assert list_friend_requests('demo-zaynah') == []
 
 
 @pytest.mark.parametrize('status', ['accepted', 'declined'])
-def test_answered_history_remains_listed_and_controls_new_requests(database, status):
+def test_answered_history_remains_listed_and_controls_new_requests(seeded_database, status):
     original = create_friend_request('demo-zaynah', 'demo-daniella')
     with connect() as connection:
         connection.execute(
@@ -105,7 +98,7 @@ def test_answered_history_remains_listed_and_controls_new_requests(database, sta
 
 
 @pytest.mark.parametrize('decision,status', [('accept', 'accepted'), ('decline', 'declined')])
-def test_recipient_response_persists_and_repeat_preserves_timestamp(database, decision, status):
+def test_recipient_response_persists_and_repeat_preserves_timestamp(seeded_database, decision, status):
     request = create_friend_request('demo-zaynah', 'demo-daniella')
     updated = respond_to_friend_request(request.id, 'demo-daniella', decision)
     assert updated.status == status
@@ -117,7 +110,7 @@ def test_recipient_response_persists_and_repeat_preserves_timestamp(database, de
 
 
 @pytest.mark.parametrize('actor', ['demo-zaynah', 'demo-kusum'])
-def test_sender_and_outsider_cannot_respond_even_on_idempotent_replay(database, actor):
+def test_sender_and_outsider_cannot_respond_even_on_idempotent_replay(seeded_database, actor):
     request = create_friend_request('demo-zaynah', 'demo-daniella')
     with pytest.raises(PermissionError):
         respond_to_friend_request(request.id, actor, 'accept')
@@ -129,7 +122,7 @@ def test_sender_and_outsider_cannot_respond_even_on_idempotent_replay(database, 
 
 
 @pytest.mark.parametrize('first,second', [('accept', 'decline'), ('decline', 'accept')])
-def test_answer_cannot_change(database, first, second):
+def test_answer_cannot_change(seeded_database, first, second):
     request = create_friend_request('demo-zaynah', 'demo-daniella')
     original = respond_to_friend_request(request.id, 'demo-daniella', first)
     with pytest.raises(ValueError, match='already been answered'):
@@ -137,7 +130,7 @@ def test_answer_cannot_change(database, first, second):
     assert list_friend_requests('demo-zaynah') == [original]
 
 
-def test_missing_request_and_invalid_decision(database):
+def test_missing_request_and_invalid_decision(seeded_database):
     with pytest.raises(LookupError):
         respond_to_friend_request('missing', 'demo-daniella', 'accept')
     request = create_friend_request('demo-zaynah', 'demo-daniella')
@@ -146,7 +139,7 @@ def test_missing_request_and_invalid_decision(database):
     assert list_friend_requests('demo-zaynah') == [request]
 
 
-def test_decline_then_new_request_can_be_accepted(database):
+def test_decline_then_new_request_can_be_accepted(seeded_database):
     first = create_friend_request('demo-zaynah', 'demo-daniella')
     respond_to_friend_request(first.id, 'demo-daniella', 'decline')
     second = create_friend_request('demo-daniella', 'demo-zaynah')
@@ -155,7 +148,7 @@ def test_decline_then_new_request_can_be_accepted(database):
     assert len(list_friend_requests('demo-zaynah')) == 2
 
 
-def test_competing_responses_record_one_final_decision(database):
+def test_competing_responses_record_one_final_decision(seeded_database):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
 

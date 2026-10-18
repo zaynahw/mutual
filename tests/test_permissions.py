@@ -6,14 +6,11 @@ from backend.friendships import (
 )
 from backend.models import VisibilityPolicy
 from backend.repositories import get_user
-from backend.seed import seed_demo_data
 from backend.services.permissions import can_access
 
 
 @pytest.fixture
-def people(tmp_path, monkeypatch):
-    monkeypatch.setenv('MUTUAL_DATABASE_PATH', str(tmp_path / 'permissions.db'))
-    seed_demo_data()
+def people(seeded_database):
     return get_user('demo-zaynah'), get_user('demo-daniella'), get_user('demo-kusum')
 
 
