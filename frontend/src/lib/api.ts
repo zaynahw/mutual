@@ -4,8 +4,8 @@ export type Activity = 'coffee' | 'meal' | 'walk' | 'study' | 'concert';
 export interface PublicUser {
   id: string;
   display_name: string;
-  is_demo: true;
-  community: 'georgia_tech';
+  is_demo: boolean;
+  community: 'georgia_tech' | null;
 }
 export interface User extends PublicUser {
   timezone: string;
@@ -39,18 +39,15 @@ interface RequestOptions {
 async function request(path: string, options: RequestOptions = {}): Promise<Response> {
   const { userId, signal, method = 'GET', body, idempotencyKey } = options;
   const response = await fetch(`${baseUrl}${path}`, {
-    method, signal,
+    method, signal, credentials: 'include',
     headers: {
-      ...(userId ? { 'X-Demo-User-Id': userId } : {}),
+      ...(userId?.startsWith('demo-') ? { 'X-Demo-User-Id': userId } : {}),
       ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('Demo user unavailable. Run the backend seed command, then reload.');
-    }
     // A proxy/server failure may return HTML or no body instead of JSON.
     const data = await response.json().catch(() => null) as {
       detail?: string | { msg: string }[];
@@ -236,3 +233,13 @@ export const sendIntent = (userId: string,id: string,signal: AbortSignal) =>
   requestJson<HangoutRequest>(`/hangout-intents/${encodeURIComponent(id)}/send`,{userId,signal,method:'POST'});
 export const updateMatching = (userId: string,body: User['matching'],signal: AbortSignal) =>
   requestJson<User>('/users/me/matching',{userId,body,signal,method:'PATCH'});
+
+export interface AuthStatus {
+  mode: 'demo'|'google'; configured: boolean; authenticated: boolean;
+  user: User|null; calendar_mode:'mock'|'google'; calendar_connected:boolean;
+}
+export const getAuthStatus = (signal:AbortSignal) => requestJson<AuthStatus>('/auth/status',{signal});
+export const beginGoogle = (purpose:'login'|'calendar',signal:AbortSignal) => requestJson<{authorization_url:string}>('/auth/google/start',{
+  method:'POST',signal,body:{purpose,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone},
+});
+export const logout = (signal:AbortSignal) => request('/auth/logout',{method:'POST',signal});

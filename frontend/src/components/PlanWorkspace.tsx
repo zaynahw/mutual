@@ -5,7 +5,8 @@ import { visibleProposals, planStatus } from '../lib/proposals';
 import { dateTime } from '../lib/display';
 import { ProposalViewer } from './ProposalViewer';
 
-export function PlanWorkspace({user,users,plans,selected,onSelect,autoRequest,onAutoStarted,active,refresh,loading,error}: {
+export function PlanWorkspace({calendarMode,calendarConnected,user,users,plans,selected,onSelect,autoRequest,onAutoStarted,active,refresh,loading,error}: {
+  calendarMode:'mock'|'google';calendarConnected:boolean;
   user:User;users:PublicUser[];plans:HangoutOverview[];
   selected:string|null;onSelect:(id:string)=>void;autoRequest:string|null;onAutoStarted:()=>void;active:boolean;
   refresh:(signal:AbortSignal)=>Promise<void>;loading:boolean;error:string;
@@ -68,7 +69,7 @@ export function PlanWorkspace({user,users,plans,selected,onSelect,autoRequest,on
         </div>}
         {proposals.map(proposal => {
           const response=chosen.proposals.find(item => item.proposal.id===proposal.id)!;
-          return <ProposalViewer key={proposal.id} user={user} users={users} value={response} onRefresh={() => void run('',false)} onChange={() => void run('',false)}/>;
+          return <ProposalViewer calendarMode={calendarMode} calendarConnected={calendarConnected} key={proposal.id} user={user} users={users} value={response} onRefresh={() => void run('',false)} onChange={() => void run('',false)}/>;
         })}
         {!settled && !busy && <div className="space-y-3"><p>{proposals.length?'Want a different suggestion? Both people must approve whichever plan you choose.':'Ready to find a plan? Your request is saved.'}</p><button disabled={busy||loading||!active} onClick={() => void run(chosen.request.id,true)}>{proposals.length?'Ask agents for another option':'Ask agents to find a plan'}</button><p className="text-sm">Sending an idea isn’t approval of an exact time. You’ll both review the suggestion.</p></div>}
       </>}

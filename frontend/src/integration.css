@@ -33,3 +33,8 @@
  .plan-inbox { max-height: 280px; overflow-y: auto; }
  .identity-picker { font-size: 10px; }
 }
+.calendar-connection { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:16px;margin-bottom:24px;border:1px solid #eadfe8;background:var(--pink-pale);border-radius:6px;font-size:14px; }
+.login-page { max-width:720px;padding-top:12vh; }
+.login-page h1 { margin:24px 0;font-size:clamp(36px,6vw,64px);line-height:1.1; }
+.login-page p { line-height:1.7; }
+.auth-feedback [role=alert] { padding:12px 32px;color:#9b2345;background:#fff1f4; }

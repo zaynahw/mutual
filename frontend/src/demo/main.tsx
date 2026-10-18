@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { checkHealth, getMe, listUsers } from '../lib/api';
+import { checkHealth, getMe, listUsers, getAuthStatus } from '../lib/api';
 import type { PublicUser, User } from '../lib/api';
 import './style.css';
 import { MatchingPreferences } from '../components/MatchingPreferences';
@@ -34,10 +34,10 @@ function App() {
     const controller = new AbortController();
     setProfileError('');
     setPanel(previous => previous.status === 'ready' && previous.selectedId === selectedId ? previous : { status: 'loading' });
-    Promise.all([
-      listUsers(selectedId, controller.signal),
-      getMe(selectedId, controller.signal),
-    ]).then(([users, me]) => {
+    getAuthStatus(controller.signal).then(auth => {
+      if (auth.mode !== 'demo') throw new Error('The backend testing panel requires demo mode. Use the main app for Google accounts.');
+      return Promise.all([listUsers(selectedId,controller.signal),getMe(selectedId,controller.signal)]);
+    }).then(([users, me]) => {
       if (!controller.signal.aborted) setPanel({ status: 'ready', selectedId, users, me });
     }).catch((error: unknown) => {
       if (!controller.signal.aborted) {

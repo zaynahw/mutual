@@ -3,7 +3,8 @@ import { decideProposal, replanProposal, scheduleProposal, getProposal } from '.
 import type { ProposalResponse, PublicUser, User } from '../lib/api';
 import { dateTime } from '../lib/display';
 
-export function ProposalViewer({ user, users, value, onChange, onRefresh }: {
+export function ProposalViewer({ user, users, value, onChange, onRefresh, calendarMode='mock', calendarConnected=true }: {
+  calendarMode?:'mock'|'google'; calendarConnected?:boolean;
   user: User; users: PublicUser[]; value: ProposalResponse;
   onChange: (result: ProposalResponse) => void; onRefresh: () => void;
 }) {
@@ -39,17 +40,17 @@ export function ProposalViewer({ user, users, value, onChange, onRefresh }: {
     <p className="text-xl font-semibold capitalize">{result.proposal.activity}</p>
     <p>{dateTime(result.proposal.slot.start, user.timezone)} – {dateTime(result.proposal.slot.end, user.timezone)}</p>
     <p>Location: {result.proposal.location || 'To be arranged'}</p>
-    <p className="font-medium">{result.proposal.status === 'approved' ? 'Both approved — ready to add to the demo calendar.' : result.proposal.status === 'scheduled' ? 'Scheduled in the demo calendar.' : result.proposal.status === 'cancelled' ? 'Closed for replanning.' : result.proposal.status === 'declined' ? 'Declined.' : mine ? 'You approved. Waiting for the other person.' : 'Your response is needed.'}</p>
+    <p className="font-medium">{result.proposal.status === 'approved' ? `Both approved — ready to add to ${calendarMode==='google'?'Google Calendar':'the demo calendar'}.` : result.proposal.status === 'scheduled' ? `Scheduled in ${calendarMode==='google'?'Google Calendar':'the demo calendar'}.` : result.proposal.status === 'cancelled' ? 'Closed for replanning.' : result.proposal.status === 'declined' ? 'Declined.' : mine ? 'You approved. Waiting for the other person.' : 'Your response is needed.'}</p>
     <ul>{result.approvals.map(item => <li key={item.user_id}>{name(item.user_id)}: {item.decision === 'approve' ? 'Approved' : 'Declined'}</li>)}</ul>
     {canDecide && <div className="flex gap-3">
       <button disabled={busy} onClick={() => void act(signal => decideProposal(user.id, result.proposal.id, 'approve', signal))}>Approve this plan</button>
       <button className="demo-secondary" disabled={busy} onClick={() => void act(signal => decideProposal(user.id, result.proposal.id, 'decline', signal))}>Decline</button>
     </div>}
     {result.proposal.status === 'approved' && <div className="space-y-3">
-      <button disabled={busy} onClick={() => void act(async signal => {
+      <button disabled={busy || !calendarConnected} onClick={() => void act(async signal => {
         await scheduleProposal(user.id, result.proposal.id, eventKey.current, signal);
         return getProposal(user.id, result.proposal.id, signal);
-      })}>Add to demo calendar</button>
+      })}>{calendarMode==='google'?'Add to Google Calendar':'Add to demo calendar'}</button>{!calendarConnected && <p>Connect your Google Calendar before scheduling.</p>}
       <p className="text-sm">If availability changed, replan to choose a new time with fresh approvals.</p>
       <button className="demo-secondary" disabled={busy} onClick={() => setConfirmReplan(true)}>Replan this hangout</button>
       {confirmReplan && <div className="demo-choice space-y-3">
@@ -58,6 +59,6 @@ export function ProposalViewer({ user, users, value, onChange, onRefresh }: {
         <button className="demo-secondary ml-2" disabled={busy} onClick={() => setConfirmReplan(false)}>Keep this plan</button>
       </div>}
     </div>}
-    <p className="text-sm text-stone-600">Decisions are final for each proposal. Calendar creation is simulated; Google is not connected here.</p>
+    <p className="text-sm text-stone-600">Decisions are final for each proposal. {calendarMode==='google'?'Scheduling sends a Google Calendar invitation to the other participant.':'Calendar creation is simulated; Google is not connected here.'}</p>
   </section>;
 }

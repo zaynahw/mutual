@@ -1,6 +1,6 @@
 import React from 'react';
-import { getMe, listUsers, listOverviews } from './lib/api';
-import type { User, PublicUser, HangoutOverview, HangoutRequest } from './lib/api';
+import { getMe, listUsers, listOverviews, getAuthStatus, beginGoogle, logout } from './lib/api';
+import type { User, PublicUser, HangoutOverview, HangoutRequest, AuthStatus } from './lib/api';
 import { visibleProposals, planStatus } from './lib/proposals';
 import { dateTime } from './lib/display';
 import { IntentRequestForm } from './components/IntentRequestForm';
@@ -17,7 +17,37 @@ const pages: [Page,string][] = [['overview','Overview'],['new','Plan with someon
 const identities = ['Zaynah','Daniella','Kusum','Mariann'];
 
 export function App() {
-  const [identity,setIdentity] = React.useState('demo-zaynah');
+  const [auth,setAuth] = React.useState<AuthStatus|null>(null);
+  const [error,setError] = React.useState('');
+  const [reload,setReload] = React.useState(0);
+  const [busy,setBusy] = React.useState(false);
+  React.useEffect(() => {
+    const controller=new AbortController();
+    getAuthStatus(controller.signal).then(data => {if(!controller.signal.aborted) {setAuth(data);setError('');}})
+      .catch(e => {if(!controller.signal.aborted) setError(e instanceof Error?e.message:'Cannot reach the backend.');});
+    return () => controller.abort();
+  },[reload]);
+  async function authorize(purpose:'login'|'calendar') {
+    if(busy)return;setBusy(true);setError('');
+    try {const result=await beginGoogle(purpose,new AbortController().signal);window.location.assign(result.authorization_url);}
+    catch(e) {setError(e instanceof Error?e.message:'Could not start Google sign-in.');setBusy(false);}
+  }
+  async function signOut() {
+    setBusy(true);setError('');
+    try {await logout(new AbortController().signal);setAuth(null);setReload(n=>n+1);}
+    catch(e) {setError(e instanceof Error?e.message:'Could not sign out.');}
+    finally {setBusy(false);}
+  }
+  if(!auth) return <main className="page-content"><h1>Mutual</h1><p role="status">Connecting to Mutual…</p>{error && <div role="alert"><p>{error}</p><button className="primary-button" onClick={()=>setReload(n=>n+1)}>Retry</button></div>}</main>;
+  if(auth.mode==='google' && !auth.authenticated) return <main className="page-content login-page"><img src={logo} alt="Mutual" width="80"/><h1>Make time for your people.</h1><p>Sign in, connect your calendar, and let your personal agents help you find a plan.</p>
+    {new URLSearchParams(window.location.search).get('auth')==='failed' && <p role="alert">Google sign-in or calendar consent did not finish. Try again and choose the same account when connecting your calendar.</p>}
+    {!auth.configured && <p role="status">Google sign-in needs backend credentials and a token-encryption key. See the setup instructions.</p>}
+    {error && <p role="alert">{error}</p>}<button className="primary-button" disabled={busy||!auth.configured} onClick={()=>void authorize('login')}>{busy?'Opening Google…':'Continue with Google'}</button></main>;
+  return <><div className="auth-feedback">{error && <p role="alert">{error}</p>}</div><Workspace key={auth.user?.id||'demo'} auth={auth} authorize={()=>void authorize('calendar')} signOut={()=>void signOut()} authBusy={busy}/></>;
+}
+
+function Workspace({auth,authorize,signOut,authBusy}:{auth:AuthStatus;authorize:()=>void;signOut:()=>void;authBusy:boolean}) {
+  const [identity,setIdentity] = React.useState(auth.user?.id || 'demo-zaynah');
   const [profile,setProfile] = React.useState<{user:User;users:PublicUser[]}|null>(null);
   const [page,setPage] = React.useState<Page>('overview');
   const [error,setError] = React.useState('');
@@ -53,10 +83,14 @@ export function App() {
     <header className="site-header"><div className="header-inner">
       <button className="brand" onClick={() => setPage('overview')} aria-label="Mutual overview"><img className="brand-mark" src={logo} alt=""/><span>mutual</span></button>
       <nav className="primary-nav" aria-label="Main navigation">{pages.map(([key,label]) => <button key={key} aria-current={page===key?'page':undefined} className={`nav-link ${page===key?'active':''}`} onClick={() => setPage(key)}>{label}</button>)}</nav>
-      <label className="identity-picker">Demo identity<select aria-label="Demo identity" value={identity} onChange={e => setIdentity(e.target.value)}>{identities.map(name => <option key={name} value={`demo-${name.toLowerCase()}`}>{name}</option>)}</select></label>
+      {auth.mode==='demo' ? <label className="identity-picker">Demo identity<select aria-label="Demo identity" value={identity} onChange={e => setIdentity(e.target.value)}>{identities.map(name => <option key={name} value={`demo-${name.toLowerCase()}`}>{name}</option>)}</select></label> : <div className="identity-picker"><span>{auth.user?.display_name}</span><button disabled={authBusy} onClick={signOut}>Sign out</button></div>}
     </div></header>
     <main className="page-content">
-      <div className="demo-notice">Demo accounts · Calendar writes are simulated · <a href="/demo.html">Backend testing panel ↗</a></div>
+      {auth.mode==='demo' ? <div className="demo-notice">Demo accounts · Calendar writes are simulated · <a href="/demo.html">Backend testing panel ↗</a></div> : <section className="calendar-connection">
+        <span>{auth.calendar_connected?'Google Calendar connected · Approved plans create real events':'Connect Google Calendar to check availability and schedule approved plans.'}</span>
+        <button className="primary-button" disabled={authBusy||!auth.configured} onClick={authorize}>{authBusy?'Opening Google…':auth.calendar_connected?'Reconnect calendar':'Connect Google Calendar'}</button>
+        {new URLSearchParams(window.location.search).get('auth')==='failed' && <p role="alert">Connection did not finish. Please retry and choose the same Google account you signed in with.</p>}
+      </section>}
       {error && <div role="alert" className="demo-panel"><p>{error}</p><button onClick={() => setReload(n => n+1)}>Retry connection</button></div>}
       {!profile && !error && <p role="status">Loading your space…</p>}
       {profile && me && me.id===identity && <div key={identity}>
@@ -82,7 +116,7 @@ export function App() {
         </div>
         <div hidden={page!=='plans'}>
           <div className="page-intro"><div><h1>My plans</h1><p className="intro-date">Suggestions, responses, and your next hangout.</p></div><button className="primary-button" onClick={() => setPage('new')}>Start a plan</button></div>
-          <PlanWorkspace user={me} users={profile.users} plans={plans} selected={selected} onSelect={setSelected} autoRequest={autoRequest} onAutoStarted={() => setAutoRequest(null)} active={page==='plans'} refresh={refresh} loading={plansLoading} error={planError}/>
+          <PlanWorkspace calendarMode={auth.calendar_mode} calendarConnected={auth.calendar_connected || auth.mode==='demo'} user={me} users={profile.users} plans={plans} selected={selected} onSelect={setSelected} autoRequest={autoRequest} onAutoStarted={() => setAutoRequest(null)} active={page==='plans'} refresh={refresh} loading={plansLoading} error={planError}/>
         </div>
         <div hidden={page!=='people'}><h1>Friends</h1><Friendships currentUser={me} users={profile.users} active={page==='people'}/></div>
         <div hidden={page!=='availability'} className="space-y-6"><h1>My availability</h1><MatchingPreferences user={me} onSaved={updated}/><details><summary>Choose specific social windows instead</summary><SocialWindows user={me} users={profile.users} active={page==='availability'}/></details></div>
