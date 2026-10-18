@@ -11,7 +11,7 @@ from backend.proposals import _read_response
 
 def create_hangout_request(request: HangoutRequest, idempotency_key: str | None = None) -> HangoutRequest:
     """Insert only; columns and JSON come from the same validated record."""
-    payload = request.model_dump(mode='json', exclude={'id', 'requester_id'})
+    payload = request.model_dump(mode='json', exclude={'id', 'requester_id'} | ({'join_window_id', 'join_window_title'} if request.join_window_id is None else set()))
     with connect() as connection:
         connection.execute('BEGIN IMMEDIATE')
         replay = read_receipt(connection, request.requester_id, idempotency_key, 'hangout', payload)

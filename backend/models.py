@@ -57,6 +57,10 @@ class Preferences(Model):
     soft_preference_note: str = Field(default="", max_length=1000)
 
 
+class CommunityMembershipUpdate(Model):
+    community: Literal["georgia_tech"] | None
+
+
 class PreferenceNoteUpdate(Model):
     soft_preference_note: str = Field(max_length=1000)
 
@@ -140,6 +144,7 @@ class FriendRequest(Model):
 
 
 class SocialWindowCreate(Interval):
+    title: str | None = Field(default=None, max_length=100)
     allowed_activities: list[Activity] = Field(min_length=1)
     visibility: VisibilityPolicy = Field(default_factory=VisibilityPolicy)
     sharing_mode: Literal["visible", "matching_only"] = "visible"
@@ -153,7 +158,14 @@ class SocialWindow(SocialWindowCreate):
 class SharedSocialWindow(Interval):
     """Viewer projection; excludes audience lists and matching-only windows."""
     id: str
+    title: str | None = Field(default=None, max_length=100)
     allowed_activities: list[Activity] = Field(min_length=1)
+
+
+class AvailabilityCard(Model):
+    owner: PublicUser
+    window: SharedSocialWindow
+    audience: Literal["community", "friends", "selected_friends"]
 
 
 class BusyInterval(Interval):
@@ -188,6 +200,8 @@ class HangoutRequestCreate(Interval):
 
 
 class HangoutRequest(HangoutRequestCreate):
+    join_window_id: str | None = None
+    join_window_title: str | None = None
     origin: Literal["manual", "intent"] = "manual"
     id: str
     requester_id: DemoUserId
@@ -227,6 +241,7 @@ class ProposalCreate(Model):
 
 
 class Proposal(ProposalCreate):
+    title: str | None = Field(default=None, max_length=100)
     source: Literal["manual", "local_agent", "demo_fallback", "mock"] = "manual"
     id: str
     request_id: str

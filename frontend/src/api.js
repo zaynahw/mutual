@@ -10,10 +10,10 @@ import { visibleProposals } from './lib/proposals';
 
 export const USE_MOCKS = false;
 
-async function getSchedule(userId, start, end, signal = new AbortController().signal) {
+async function getSchedule(userId, start, end, signal = new AbortController().signal, ownerId = userId) {
   const [schedule, overviews] = await Promise.all([
-    requestSchedule(userId, userId, { start, end }, signal),
-    listOverviews(userId, signal),
+    requestSchedule(userId, ownerId, { start, end }, signal),
+    ownerId === userId ? listOverviews(userId, signal) : Promise.resolve([]),
   ]);
 
   return {

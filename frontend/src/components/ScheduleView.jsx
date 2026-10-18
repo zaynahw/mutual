@@ -10,10 +10,11 @@ function timeLabel(hour) {
   return `${displayHour}${hour < 12 ? 'am' : 'pm'}`;
 }
 
-function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone, onSelect }) {
+function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone, calendarMode="mock", ownerId=userId, onSelect }) {
   const [schedule, setSchedule] = useState(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [layers,setLayers] = useState({busy:true,social:true,proposal:true});
   const [view, setView] = useState('week');
   const [anchor, setAnchor] = useState(() => USE_MOCKS ? mockWeek : new Date());
   const range = view === 'week' ? getWeekRange(anchor, timezone) : getDayRange(anchor, timezone);
@@ -26,19 +27,19 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
     let active = true;
     setSchedule(null);
     setError('');
-    api.getSchedule(userId, range.start, range.end)
+    api.getSchedule(userId, range.start, range.end, undefined, ownerId)
       .then((result) => { if (active) setSchedule(result); })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Could not load the schedule.'); });
 
     return () => { active = false; };
-  }, [userId, range.start, range.end, retry]);
+  }, [userId, ownerId, range.start, range.end, retry]);
 
   const blocks = [
     ...(schedule?.calendar_busy || []).map((item) => ({ ...item, type: 'busy' })),
     ...(schedule?.social_windows || []).map((item) => ({ ...item, type: 'social' })),
     ...(schedule?.proposals || []).map((item) => ({ ...item, type: 'proposal' })),
   ];
-  const visibleBlocks = blocks.filter((block) => days.some((day) => getBlockPosition(block.start, block.end, day.key, timezone)));
+  const visibleBlocks = blocks.filter((block) => layers[block.type] && days.some((day) => getBlockPosition(block.start, block.end, day.key, timezone)));
   const navigationUnit = view === 'week' ? 7 : 1;
 
   return <section className="schedule-view" aria-labelledby="schedule-view-title" aria-label={`Schedule for ${userId}`}>
@@ -54,6 +55,10 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
         <button type="button" className="schedule-view__step" aria-label={`Next ${view}`} onClick={() => setAnchor((current) => shiftCalendarDate(current, navigationUnit, timezone))}>›</button>
       </div>
     </div>
+    <div className="schedule-view__legend" aria-label="Calendar layers">
+      {[['busy',calendarMode==='google'?'Google Calendar · busy':'Demo calendar · busy'],['social','Open to company'],['proposal','Mutual plans']].filter(([type])=>ownerId===userId||type!=='proposal').map(([type,label])=><button type="button" key={type} aria-pressed={layers[type]} className={`schedule-view__legend-item schedule-view__legend-item--${type}`} onClick={()=>setLayers(current=>({...current,[type]:!current[type]}))}><i aria-hidden="true"/>{label}</button>)}
+    </div>
+    <p className="schedule-view__caption">{timezone} · Calendar blocks show busy time only. {ownerId===userId?'Select a Mutual plan to review it.':'Select shared availability to request to join.'}</p>
     {schedule?.calendar_busy === null && <p className="schedule-view__state" role="status">Calendar busy times are not shared with this viewer.</p>}
     {error ? <div className="schedule-view__state" role="alert"><p>{error}</p><button type="button" onClick={() => setRetry((attempt) => attempt + 1)}>Retry</button></div>
       : !schedule ? <p className="schedule-view__state" role="status">Loading schedule…</p>
@@ -74,15 +79,15 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
             if (!position) return null;
 
             const label = block.type === 'busy'
-              ? 'Busy'
+              ? `${calendarMode==='google'?'Google Calendar':'Demo calendar'} · Busy`
               : block.type === 'social'
-                ? `Available: ${(block.allowed_activities || []).join(', ')}`
+                ? `Available: ${block.title|| (block.allowed_activities || []).join(', ')}`
                 : `${block.status === 'scheduled' ? 'Mutual hangout' : 'Suggested hangout'}: ${block.activity}, ${block.status}`;
             const proposalStyle = block.type === 'proposal'
               ? block.status === 'declined' || block.status === 'rejected'
                 ? 'rejected'
                 : block.status === 'approved' || block.status === 'scheduled'
-                  ? 'approved'
+                  ? block.status==='scheduled'?'scheduled':'approved'
                   : 'pending'
               : '';
             const selectedItem = block.type === 'social'
@@ -94,9 +99,9 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
               key={`${block.type}-${block.start}`}
               className={blockClass}
               style={{ top: `${position.top}%`, height: `${position.height}%` }}
-              aria-label="Busy"
-              title="Busy"
-            /> : <button
+              aria-label={label}
+              title={`${label} · ${new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',timeZone:timezone}).format(new Date(block.start))}`}
+            ><span>{calendarMode==='google'?'Google Calendar':'Calendar'}</span><small>Busy</small></div> : <button
               type="button"
               key={`${block.type}-${block.id || block.start}`}
               className={blockClass}
@@ -105,8 +110,8 @@ function ScheduleView({ userId, timezone = Intl.DateTimeFormat().resolvedOptions
               title={label}
               onClick={() => onSelect?.(selectedItem)}
             >
-              {block.type === 'social' && <span>{(block.allowed_activities || []).join(', ')}</span>}
-              {block.type === 'proposal' && <span>{block.activity}</span>}
+              {block.type === 'social' && <><span>{block.title||'Open to company'}</span><small>{(block.allowed_activities || []).join(', ')}</small></>}
+              {block.type === 'proposal' && <><span>{block.activity}</span><small>{block.status==='scheduled'?'Mutual · scheduled':block.status==='approved'?'Both approved':'Mutual · suggested'}</small></>}
             </button>;
           })}
         </div>)}

@@ -387,3 +387,53 @@ previously suggested start instant, across activities and durations. The default
 the idempotency key binds the variation so a retry cannot change its meaning.
 Both modes preserve existing proposals and require fresh human approvals for new
 ones. This is request-specific feedback and does not change saved preferences.
+
+## Shared availability board
+
+`GET /availability-board?start=...&end=...` requires authentication and a timezone-aware
+range of at most 14 days. It returns `AvailabilityCard[]`, ordered by start, owner,
+and window ID. Each card contains a public owner, a clipped shared window, and
+its audience label. Private windows, matching-only windows, expired windows,
+unauthorized audiences, and profiles in the other demo/real mode are excluded.
+No provider calendar is read; publishing availability is not a free/busy guarantee.
+Current friendship and community membership determine audience access.
+
+The Community UI lists seven days, publishes through the existing social-window
+API, and routes accepted friends into interpretation review with a prefilled day,
+activity, and same-day time range. Other members can send/review a friend request
+first. Existing approval and scheduling checks remain authoritative. This is
+availability discovery, not event RSVP or multi-person negotiation.
+
+
+### Community membership and named shared windows
+
+`PATCH /users/me/community` accepts only `{ "community": "georgia_tech" }` or
+`{ "community": null }`. It modifies only the authenticated owner's membership.
+For this hackathon this is an open, self-selected community, not verified student
+status. Friends-only policies still require accepted friendship. Leaving revokes
+access to community-only windows, including later scheduling of joined plans.
+
+Social-window create/update and viewer projections include optional `title`
+(maximum 100 characters), for example a concert artist. It is explicitly
+published social content, never a provider calendar event title.
+
+### Request to join a shared window
+
+`POST /availability-board/{owner_id}/{window_id}/join` accepts `ProposalCreate`
+(activity and exact slot) and a required payload-bound Idempotency-Key. Returns
+201 `HangoutOverview` with one pending manual proposal and zero human approvals.
+Friends-only windows require friendship; community windows require current
+membership. Private or matching-only windows are not joinable. Unauthorized
+windows are concealed with 404; invalid/changed availability yields 409; provider
+failure yields 502 without saving partial requests. No agent is invoked for an
+exact join request. Sender consent is limited to the chosen interval within
+personal hours. Both calendars, activity/duration boundaries, source-window
+visibility, and current audience permissions are enforced before persistence.
+
+The request and proposal are inserted atomically with a retry receipt. The
+server-only request fields `join_window_id` and `join_window_title` preserve the
+source and its named activity context; client request-creation bodies reject
+these fields. Final scheduling rechecks the source even if its owner has enabled
+calendar-guided matching. Withdrawing the window, changing its title, revoking
+friendship/community permission, or new conflicts blocks scheduling. Each join
+request is a two-person plan; multiple joiners are not a multi-attendee RSVP event.

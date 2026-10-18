@@ -1,6 +1,7 @@
 import React from 'react';
 import { getMe, listUsers, listOverviews, getAuthStatus, beginGoogle, logout } from './lib/api';
 import type { User, PublicUser, HangoutOverview, HangoutRequest, AuthStatus } from './lib/api';
+import { planAttention, planFingerprint, readSeenPlans } from './lib/proposals';
 import { visibleProposals, planStatus } from './lib/proposals';
 import { dateTime } from './lib/display';
 import { IntentRequestForm } from './components/IntentRequestForm';
@@ -10,10 +11,14 @@ import { Friendships } from './components/Friendships';
 import { SocialWindows } from './components/SocialWindows';
 import ScheduleView from './components/ScheduleView.jsx';
 import { PlanWorkspace } from './components/PlanWorkspace';
+import { CommunityMembership } from './components/CommunityMembership';
+import { FriendSchedule } from './components/FriendSchedule';
+import { CommunityBoard } from './components/CommunityBoard';
+import type { AvailabilityCard } from './lib/api';
 import logo from '../images/logo.jpg';
 
-type Page = 'overview'|'new'|'plans'|'people'|'availability'|'settings';
-const pages: [Page,string][] = [['overview','Overview'],['new','Plan with someone'],['plans','My plans'],['people','Friends'],['availability','Availability'],['settings','My preferences']];
+type Page = 'overview'|'community'|'new'|'plans'|'people'|'availability'|'settings';
+const pages: [Page,string][] = [['overview','Overview'],['community','Community'],['new','Plan with someone'],['plans','My plans'],['people','Friends'],['availability','Availability'],['settings','My preferences']];
 const identities = ['Zaynah','Daniella','Kusum','Mariann'];
 
 export function App() {
@@ -53,37 +58,63 @@ function Workspace({auth,authorize,signOut,authBusy}:{auth:AuthStatus;authorize:
   const [error,setError] = React.useState('');
   const [reload,setReload] = React.useState(0);
   const [plans,setPlans] = React.useState<HangoutOverview[]>([]);
+  const planFetchVersion=React.useRef(0);
+  const [deliveredJoin,setDeliveredJoin]=React.useState<string|null>(null);
+  const [planNotice,setPlanNotice]=React.useState('');
   const [planError,setPlanError] = React.useState('');
   const [selected,setSelected] = React.useState<string|null>(null);
+  const [seen,setSeen]=React.useState<Record<string,string>>(()=>readSeenPlans(auth.user?.id||'demo-zaynah'));
+  const [scheduleWindow,setScheduleWindow]=React.useState<string|null>(null);
+  const [scheduleFriend,setScheduleFriend]=React.useState<string|null>(null);
+  const [communityIdea,setCommunityIdea] = React.useState<AvailabilityCard|null>(null);
   const [autoRequest,setAutoRequest] = React.useState<string|null>(null);
   const [matchingChoice,setMatchingChoice] = React.useState(false);
   const [plansLoading,setPlansLoading] = React.useState(true);
   React.useEffect(() => {
-    const controller = new AbortController();setError('');setProfile(null);setPlans([]);setSelected(null);setAutoRequest(null);setMatchingChoice(false);
+    const controller = new AbortController();setError('');setProfile(null);setPlans([]);setSelected(null);setAutoRequest(null);setMatchingChoice(false);setCommunityIdea(null);setScheduleFriend(null);setScheduleWindow(null);setSeen(readSeenPlans(identity));setDeliveredJoin(null);setPlanNotice('');planFetchVersion.current+=1;
     Promise.all([getMe(identity,controller.signal),listUsers(identity,controller.signal)])
       .then(([user,users]) => {if(!controller.signal.aborted) setProfile({user,users});})
       .catch(e => {if(!controller.signal.aborted) setError(e instanceof TypeError ? 'Cannot reach the backend on port 8000.' : e.message);});
     return () => controller.abort();
   },[identity,reload]);
-  const refresh = React.useCallback(async (signal:AbortSignal) => {
-    setPlansLoading(true);
-    try {const data=await listOverviews(identity,signal);if(!signal.aborted) {setPlans(data);setPlanError('');}}
-    catch(e) {if(!signal.aborted) setPlanError(e instanceof Error ? e.message : 'Could not load plans.');}
-    finally {if(!signal.aborted) setPlansLoading(false);}
+  const refresh = React.useCallback(async (signal:AbortSignal,silent=false) => {
+    const version=++planFetchVersion.current;
+    if(!silent)setPlansLoading(true);
+    try {const data=await listOverviews(identity,signal);if(!signal.aborted&&version===planFetchVersion.current) {setPlans(data);setPlanError('');}}
+    catch(e) {if(!signal.aborted&&version===planFetchVersion.current) setPlanError(e instanceof Error ? e.message : 'Could not load plans.');}
+    finally {if(!signal.aborted&&!silent) setPlansLoading(false);}
   },[identity]);
   React.useEffect(() => {const controller=new AbortController();void refresh(controller.signal);return () => controller.abort();},[page,refresh,reload]);
+  React.useEffect(()=>{
+    const controller=new AbortController();let polling=false;
+    const poll=async()=>{if(document.hidden||polling)return;polling=true;try{await refresh(controller.signal,true);}finally{polling=false;}};
+    const timer=window.setInterval(()=>void poll(),15000);
+    window.addEventListener('focus',poll);
+    return ()=>{controller.abort();window.clearInterval(timer);window.removeEventListener('focus',poll);};
+  },[refresh]);
+  function markReviewed(id:string){
+    const item=plans.find(p=>p.request.id===id);if(!item)return;
+    setSeen(old=>{const next={...old,[id]:planFingerprint(item)};try{sessionStorage.setItem(`mutual:seen-plans:${identity}`,JSON.stringify(next));}catch{}return next;});
+  }
+  function selectPlan(id:string){markReviewed(id);setSelected(id);}
+  function markAllReviewed(){const next=Object.fromEntries(plans.map(p=>[p.request.id,planFingerprint(p)]));setSeen(next);try{sessionStorage.setItem(`mutual:seen-plans:${identity}`,JSON.stringify(next));}catch{}}
+  function showSchedule(id:string,windowId?:string){setScheduleFriend(id);setScheduleWindow(windowId||null);setPage('community');}
   function saved(request:HangoutRequest) {
+    planFetchVersion.current+=1;
     setPlans(old => [...old.filter(item => item.request.id!==request.id),{request,proposals:[]}]);
     setSelected(request.id);setAutoRequest(request.id);setPage('plans');
   }
   function updated(user:User) {setProfile(old => old?.user.id===user.id ? {...old,user} : old);}
-  function open(id:string) {setSelected(id);setPage('plans');}
+  function open(id:string) {selectPlan(id);setPage('plans');}
   const me = profile?.user;
+  const unreadCount=plans.filter(p=>seen[p.request.id]!==planFingerprint(p)).length;
+  const navPlanCount=plans.filter(p=>planAttention(p,identity).action||seen[p.request.id]!==planFingerprint(p)).length;
+  const attentionCount=plans.filter(p=>planAttention(p,identity).action).length;
   const activePlans = plans.filter(item => visibleProposals(item.proposals.map(response => response.proposal)).length>0);
   return <div className="app-shell mutual-product">
     <header className="site-header"><div className="header-inner">
       <button className="brand" onClick={() => setPage('overview')} aria-label="Mutual overview"><img className="brand-mark" src={logo} alt=""/><span>mutual</span></button>
-      <nav className="primary-nav" aria-label="Main navigation">{pages.map(([key,label]) => <button key={key} aria-current={page===key?'page':undefined} className={`nav-link ${page===key?'active':''}`} onClick={() => setPage(key)}>{label}</button>)}</nav>
+      <nav className="primary-nav" aria-label="Main navigation">{pages.map(([key,label]) => <button key={key} aria-current={page===key?'page':undefined} className={`nav-link ${page===key?'active':''}`} onClick={() => {setPage(key);if(key==='community'){setScheduleFriend(null);setScheduleWindow(null);}}}>{label}{key==='plans'&&navPlanCount>0&&<span className="nav-action-count" aria-label={`${attentionCount} plans need action; ${unreadCount} new or updated`}>{navPlanCount}</span>}</button>)}</nav>
       {auth.mode==='demo' ? <label className="identity-picker">Demo identity<select aria-label="Demo identity" value={identity} onChange={e => setIdentity(e.target.value)}>{identities.map(name => <option key={name} value={`demo-${name.toLowerCase()}`}>{name}</option>)}</select></label> : <div className="identity-picker"><span>{auth.user?.display_name}</span><button disabled={authBusy} onClick={signOut}>Sign out</button></div>}
     </div></header>
     <main className="page-content">
@@ -115,20 +146,28 @@ function Workspace({auth,authorize,signOut,authBusy}:{auth:AuthStatus;authorize:
                 return <button className="plan-card" key={item.request.id} onClick={() => open(item.request.id)}><span className="plan-accent"/><span className="plan-copy"><strong>{proposal.activity} with {profile.users.find(u => u.id===other)?.display_name || other}</strong><span>{dateTime(proposal.slot.start,me.timezone)}</span><span>{planStatus(item.proposals,identity)}</span></span></button>;
               })}</div>
             </section>
-            {page==='overview' && <ScheduleView key={`${identity}-${reload}`} userId={identity} timezone={me.timezone} onSelect={item => {if(item.type==='proposal') {const match=plans.find(p => p.proposals.some(value => value.proposal.id===item.id));if(match) open(match.request.id);}}}/>}
+            {page==='overview' && <ScheduleView calendarMode={auth.calendar_mode} key={`${identity}-${reload}`} userId={identity} timezone={me.timezone} onSelect={item => {if(item.type==='proposal') {const match=plans.find(p => p.proposals.some(value => value.proposal.id===item.id));if(match) open(match.request.id);}}}/>}
           </div>
+        </div>
+        <div hidden={page!=='community'}>
+          {scheduleFriend===null?<CommunityBoard onBrowseFriends={()=>{setScheduleFriend('');setScheduleWindow(null);}} onUserSaved={updated} onSchedule={showSchedule} user={me} users={profile.users} plans={plans} onOpenPlan={open} active={page==='community'} onFriends={()=>setPage('people')} onPlan={card=>{setCommunityIdea(card);setPage('new');}}/>:<>
+            <button className="text-link community-back" onClick={()=>{setScheduleFriend(null);setScheduleWindow(null);}}>← Everyone’s shared calendar</button>
+            <FriendSchedule user={me} active={page==='community'} initialFriend={scheduleFriend} initialWindow={scheduleWindow} calendarMode={auth.calendar_mode} onRequested={result=>{planFetchVersion.current+=1;setDeliveredJoin(result.request.id);setPlanNotice('Join request sent. It is saved in both participants’ My plans. Both people still need to approve this exact plan.');setPlans(old=>[...old.filter(p=>p.request.id!==result.request.id),result]);setSelected(result.request.id);setAutoRequest(null);setPage('plans');}}/>
+          </>}
         </div>
         <div hidden={page!=='new'} className="product-request">
           <div className="page-intro"><div><h1>Plan with someone</h1><p className="intro-date">Share an idea. Your agents can work out the details.</p></div></div>
-          <div className="demo-panel"><IntentRequestForm active={page==='new'} user={me} users={profile.users} onSaved={saved}/></div>
+          <div className="demo-panel"><IntentRequestForm initialIdea={communityIdea} active={page==='new'} user={me} users={profile.users} onSaved={saved}/></div>
         </div>
         <div hidden={page!=='plans'}>
           <div className="page-intro"><div><h1>My plans</h1><p className="intro-date">Suggestions, responses, and your next hangout.</p></div><button className="primary-button" onClick={() => setPage('new')}>Start a plan</button></div>
-          <PlanWorkspace calendarMode={auth.calendar_mode} calendarConnected={auth.calendar_connected || auth.mode==='demo'} user={me} users={profile.users} plans={plans} selected={selected} onSelect={setSelected} autoRequest={autoRequest} onAutoStarted={() => setAutoRequest(null)} active={page==='plans'} refresh={refresh} loading={plansLoading} error={planError}/>
+          {planNotice&&<div className="join-delivery-notice" role="status"><strong>{planNotice}</strong><button className="text-link" onClick={()=>setPlanNotice('')}>Dismiss</button></div>}
+          <PlanWorkspace focusRequest={deliveredJoin} calendarMode={auth.calendar_mode} calendarConnected={auth.calendar_connected || auth.mode==='demo'} user={me} users={profile.users} plans={plans} selected={selected} seen={seen} onReviewAll={markAllReviewed} onSelect={selectPlan} autoRequest={autoRequest} onAutoStarted={() => setAutoRequest(null)} active={page==='plans'} refresh={refresh} loading={plansLoading} error={planError}/>
         </div>
-        <div hidden={page!=='people'}><h1>Friends</h1><Friendships currentUser={me} users={profile.users} active={page==='people'}/></div>
-        <div hidden={page!=='availability'} className="space-y-6"><h1>My availability</h1><MatchingPreferences user={me} onSaved={updated}/><details><summary>Choose specific social windows instead</summary><SocialWindows user={me} users={profile.users} active={page==='availability'}/></details></div>
-        <div hidden={page!=='settings'} className="demo-panel space-y-4"><h1>My preferences</h1><p>Your agent uses these privately when considering plans.</p><PrivatePreferences user={me} onSaved={updated}/><p>Timezone: {me.timezone}</p><p>Allowed activities: {me.hard_constraints.allowed_activities.join(', ')}</p><p>Maximum duration: {me.hard_constraints.max_duration_minutes} minutes</p><p>Activity boundaries and timezone are currently read-only.</p></div>
+
+        <div hidden={page!=='people'}><h1>Friends</h1><Friendships onViewSchedule={id=>showSchedule(id)} currentUser={me} users={profile.users} active={page==='people'}/></div>
+        <div hidden={page!=='availability'} className="space-y-6"><h1>My availability</h1><MatchingPreferences user={me} onSaved={updated}/><details><summary>Manage shared social windows</summary><SocialWindows user={me} users={profile.users} active={page==='availability'}/></details></div>
+        <div hidden={page!=='settings'} className="demo-panel space-y-4"><h1>My preferences</h1><p>Your agent uses these privately when considering plans.</p><CommunityMembership user={me} onSaved={updated}/><PrivatePreferences user={me} onSaved={updated}/><p>Timezone: {me.timezone}</p><p>Allowed activities: {me.hard_constraints.allowed_activities.join(', ')}</p><p>Maximum duration: {me.hard_constraints.max_duration_minutes} minutes</p><p>Activity boundaries and timezone are currently read-only.</p></div>
       </div>}
     </main>
   </div>;

@@ -16,7 +16,7 @@ export type CreatedSocialWindow = SocialWindow;
 
 export const api: {
   checkHealth(): Promise<string>;
-  getSchedule(userId: string, start: string, end: string, signal?: AbortSignal): Promise<ScheduleData>;
+  getSchedule(userId: string, start: string, end: string, signal?: AbortSignal, ownerId?: string): Promise<ScheduleData>;
   getFriends(userId: string, signal?: AbortSignal): Promise<Friend[]>;
   createSocialWindow(window: CreateSocialWindowInput, signal?: AbortSignal): Promise<CreatedSocialWindow>;
 };

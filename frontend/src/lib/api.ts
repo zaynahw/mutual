@@ -76,6 +76,7 @@ export async function checkHealth(): Promise<string> {
 }
 
 export interface SocialWindowInput {
+  title?: string|null;
   start: string;
   end: string;
   allowed_activities: Activity[];
@@ -135,7 +136,7 @@ export const removeFriendship = (userId: string, requestId: string, signal: Abor
 export interface Interval { start: string; end: string }
 export interface ScheduleResponse {
   user: PublicUser;
-  social_windows: (Interval & { id: string; allowed_activities: Activity[] })[];
+  social_windows: (Interval & { id: string; title?:string|null; allowed_activities: Activity[] })[];
   calendar_busy: Interval[] | null;
 }
 export type Duration = 30 | 60 | 90 | 120;
@@ -145,7 +146,7 @@ export interface HangoutInput extends Interval {
   allowed_durations: Duration[];
   location: string | null;
 }
-export interface HangoutRequest extends HangoutInput { id: string; requester_id: string; origin: "manual" | "intent"; search_windows: Interval[] }
+export interface HangoutRequest extends HangoutInput { join_window_id?:string|null; join_window_title?:string|null; id: string; requester_id: string; origin: "manual" | "intent"; search_windows: Interval[] }
 export interface CandidateOption {
   slot: Interval;
   eligible_activities: Activity[];
@@ -153,6 +154,7 @@ export interface CandidateOption {
 }
 export interface ProposalInput { activity: Activity; slot: Interval }
 export interface Proposal extends ProposalInput {
+  title?:string|null;
   source: 'manual' | 'local_agent' | 'demo_fallback' | 'mock';
   id: string;
   request_id: string;
@@ -248,3 +250,23 @@ export const beginGoogle = (purpose:'login'|'calendar',signal:AbortSignal) => re
   method:'POST',signal,body:{purpose,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone},
 });
 export const logout = (signal:AbortSignal) => request('/auth/logout',{method:'POST',signal});
+
+
+export interface AvailabilityCard {
+  owner: PublicUser;
+  window: {id:string;title?:string|null;start:string;end:string;allowed_activities:Activity[]};
+  audience: string;
+}
+export const getAvailabilityBoard = (userId:string,start:string,end:string,signal:AbortSignal) =>
+  requestJson<AvailabilityCard[]>(`/availability-board?${new URLSearchParams({start,end})}`, {userId,signal});
+
+export async function requestJoinWindow(userId:string,ownerId:string,windowId:string,body:{activity:Activity;slot:Interval},signal:AbortSignal) {
+  const operation=`join-window:${ownerId}:${windowId}`;
+  const retry=await creationKey(userId,operation,body);
+  const result=await requestJson<HangoutOverview>(`/availability-board/${encodeURIComponent(ownerId)}/${encodeURIComponent(windowId)}/join`,{
+    userId,signal,method:'POST',body,idempotencyKey:retry.key,
+  });
+  retry.confirmed();return result;
+}
+export const updateCommunity = (userId:string, community:'georgia_tech'|null,signal:AbortSignal) =>
+  requestJson<User>('/users/me/community',{userId,signal,method:'PATCH',body:{community}});

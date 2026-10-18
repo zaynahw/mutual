@@ -4,12 +4,13 @@ import type { FriendRequest, PublicUser } from '../lib/api';
 import { activeRequestFor } from '../lib/friendships';
 
 interface Props {
+  onViewSchedule?: (id:string)=>void;
   active: boolean;
   currentUser: PublicUser;
   users: PublicUser[];
 }
 
-export function Friendships({ currentUser, users, active }: Props) {
+export function Friendships({ currentUser, users, active, onViewSchedule }: Props) {
   const [requests, setRequests] = React.useState<FriendRequest[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
@@ -140,6 +141,7 @@ export function Friendships({ currentUser, users, active }: Props) {
             {friends.length === 0 ? <p className="text-sm text-stone-500">No accepted friends yet.</p> : <ul>
               {friends.map(request => <li key={request.id} className="space-y-2 rounded-lg border border-stone-200 p-3">
                 <p>{name(otherId(request))}</p>
+                {onViewSchedule&&<button className="text-link" disabled={unavailable} onClick={()=>onViewSchedule(otherId(request))}>View shared schedule ↗</button>}
                 <button disabled={unavailable} className="text-red-700 underline disabled:opacity-50"
                   onClick={() => { setConfirmRemoveId(request.id); setActionError(''); }}>
                   Remove friend

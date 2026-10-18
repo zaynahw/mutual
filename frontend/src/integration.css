@@ -38,3 +38,31 @@
 .login-page h1 { margin:24px 0;font-size:clamp(36px,6vw,64px);line-height:1.1; }
 .login-page p { line-height:1.7; }
 .auth-feedback [role=alert] { padding:12px 32px;color:#9b2345;background:#fff1f4; }
+.nav-action-count {display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:5px;border-radius:20px;background:#8b3c72;color:white;font-size:10px;font-weight:700;}
+.plan-activity-summary {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+.plan-activity-summary>button,.plan-activity-summary>div {display:grid;gap:5px;border:1px solid #e8d4e2;border-radius:12px;padding:18px;background:white;text-align:left;color:#69415d;}
+.plan-activity-summary strong {font-size:28px;line-height:1.2;}
+.plan-activity-summary span {font-size:12px;}
+.plan-activity-summary button[aria-pressed=true] {border-color:#a8518d;background:#fff2fb;}
+.plan-updates-toolbar {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.plan-updates-toolbar .community-filters {margin:18px 0 8px;}
+.plan-live-note {font-size:11px;color:#887583;margin:8px 0 20px;}
+.inbox-item--action {border-left:4px solid #b55b9c;}
+.inbox-item--unread {background:#fff7fc;}
+.inbox-item-heading {display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.inbox-item-heading strong {color:#503148;font-size:15px;}
+.plan-inbox .inbox-item .plan-update-badge {background:#8b3c72;color:white;font-size:10px;padding:3px 7px;border-radius:12px;}
+.plan-next-action {padding:16px;border:1px solid #e8d0e1;border-radius:10px;background:#fff3fb;color:#743e64;}
+.plan-next-action p {font-size:13px;margin:7px 0 0;line-height:1.6;}
+.plan-next-action--waiting,.plan-next-action--closed {background:#f8f6fa;color:#726273;border-color:#e9e1eb;}
+.plan-next-action--schedule {background:#eaf7f2;border-color:#c1e3d5;color:#356c58;}
+@media(max-width:650px){.plan-activity-summary{grid-template-columns:repeat(2,minmax(0,1fr));}.plan-activity-summary>button,.plan-activity-summary>div{padding:14px;}.plan-updates-toolbar{align-items:flex-start;}}
+.join-delivery-notice {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px;border:1px solid #b4d7c7;background:#eaf7f0;color:#356c51;border-radius:12px;margin-bottom:20px;font-size:14px;line-height:1.6;}
+.join-request-kind {display:inline-block;background:#efe1f6;color:#754584;font-size:12px;padding:6px 10px;border-radius:20px;}
+.join-not-sent {font-weight:600;color:#774365;}
+.join-inline-error {padding:14px;margin:12px 0;border:1px solid #e9b5be;border-radius:8px;background:#fff1f3;color:#923f50;line-height:1.7;}
+.community-join-inbox {border:1px solid #d8bfdf;background:#fcf5ff;padding:20px;border-radius:14px;margin:20px 0;}
+.community-join-inbox h2 {font-size:20px;color:#704481;}
+.community-join-inbox p {font-size:13px;color:#78647d;}
+.community-join-inbox button {display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;width:100%;text-align:left;border:1px solid #e8d8ec;border-radius:8px;background:white;padding:14px;margin-top:9px;}
+.community-join-inbox button small {color:#885a7e;}

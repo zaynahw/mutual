@@ -37,3 +37,34 @@ test('legacy identical plans render once without combining decisions or mutating
   assert.deepEqual(visibleProposals([first,{...duplicate,status:'approved'}]),[{...duplicate,status:'approved'}]);
   assert.equal(duplicate.id,'b');
 });
+
+test('plan attention distinguishes incoming joins, waiting, scheduling and closed plans', async () => {
+  const {planAttention}=await import('../src/lib/proposals.ts');
+  const item={request:{id:'request',requester_id:'a',invitee_id:'b',join_window_id:'window'},proposals:[{
+    proposal:{...plan('p','pending'),activity:'coffee',slot:{start:'2026-10-23T14:00:00Z',end:'2026-10-23T14:30:00Z'}},approvals:[],
+  }]};
+  assert.equal(planAttention(item,'b').label,'Join request · respond');
+  item.proposals[0].approvals.push({user_id:'a',decision:'approve'});
+  assert.equal(planAttention(item,'a').kind,'waiting');
+  assert.equal(planAttention(item,'b').action,true);
+  item.proposals[0].proposal.status='approved';
+  assert.equal(planAttention(item,'a').kind,'schedule');
+  item.proposals[0].proposal.status='scheduled';
+  assert.equal(planAttention(item,'a').action,false);
+  item.proposals[0].proposal.status='declined';
+  assert.equal(planAttention(item,'b').kind,'closed');
+  item.proposals=[];
+  assert.equal(planAttention(item,'b').kind,'find');
+});
+
+test('activity fingerprints detect decisions and new options, but ignore response ordering', async () => {
+  const {planFingerprint}=await import('../src/lib/proposals.ts');
+  const item={request:{id:'r'},proposals:[{proposal:plan('a','pending'),approvals:[]},{proposal:plan('b','pending'),approvals:[]}]};
+  const initial=planFingerprint(item);
+  assert.equal(planFingerprint({...item,proposals:[...item.proposals].reverse()}),initial);
+  item.proposals[0].approvals.push({user_id:'friend',decision:'approve',decided_at:'now'});
+  assert.notEqual(planFingerprint(item),initial);
+  const decided=planFingerprint(item);
+  item.proposals[0].proposal.status='approved';
+  assert.notEqual(planFingerprint(item),decided);
+});

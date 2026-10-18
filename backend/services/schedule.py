@@ -47,7 +47,7 @@ async def build_schedule(
         clipped = clip_interval(window, search)
         if clipped is not None:
             social_windows.append(SharedSocialWindow(
-                id=window.id, start=clipped.start, end=clipped.end,
+                id=window.id, title=window.title, start=clipped.start, end=clipped.end,
                 allowed_activities=window.allowed_activities,
             ))
     social_windows.sort(key=lambda window: (window.start, window.end, window.id))
