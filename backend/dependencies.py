@@ -9,7 +9,8 @@ from backend.models import BusyInterval, HangoutRequest, Proposal, User
 from backend.proposals import get_proposal
 from backend.repositories import get_user
 from backend.hangouts import get_hangout_request
-from backend.services.calendar_adapter import CalendarAdapter, MockCalendarAdapter
+from backend.services.calendar_adapter import CalendarAdapter
+from backend.services.demo_calendar import DemoCalendarAdapter
 
 
 def get_current_user(
@@ -33,7 +34,7 @@ def get_calendar_adapter() -> CalendarAdapter:
     """
     fixture = Path(__file__).resolve().parents[1] / 'contracts' / 'examples.json'
     data = json.loads(fixture.read_text())
-    return MockCalendarAdapter([BusyInterval.model_validate(value) for value in data['busy_intervals']])
+    return DemoCalendarAdapter([BusyInterval.model_validate(value) for value in data['busy_intervals']])
 
 
 def get_participant_request(request_id: str, current_user: CurrentUser) -> HangoutRequest:

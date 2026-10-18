@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from backend.models import CandidateOption, HangoutRequest, Proposal, ProposalCreate
 from backend.proposals import create_proposal
+from backend.creation_receipts import get_receipt
 from backend.services.calendar_adapter import CalendarAdapter
 from backend.services.candidates import build_candidates
 
@@ -25,7 +26,13 @@ async def create_validated_proposal(
     request: HangoutRequest,
     recommendation: ProposalCreate,
     calendar: CalendarAdapter,
+    approved_by: str | None = None,
+    idempotency_key: str | None = None,
 ) -> Proposal:
+    if approved_by is not None:
+        replay = get_receipt(approved_by, idempotency_key, f'proposal:{request.id}', recommendation.model_dump(mode='json'))
+        if replay is not None:
+            return Proposal.model_validate_json(replay)
     candidates = await build_candidates(request, calendar)
     if not any(fits_candidate(recommendation, candidate) for candidate in candidates):
         raise ValueError("The proposed plan no longer fits valid availability")
@@ -37,5 +44,4 @@ async def create_validated_proposal(
         location=request.location,
         status="pending",
     )
-    create_proposal(proposal)
-    return proposal
+    return create_proposal(proposal, approved_by, idempotency_key)

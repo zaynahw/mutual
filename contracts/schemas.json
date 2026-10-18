@@ -1197,6 +1197,7 @@
           "pending",
           "approved",
           "declined",
+          "cancelled",
           "scheduled"
         ],
         "title": "Status",
@@ -1368,6 +1369,7 @@
               "pending",
               "approved",
               "declined",
+              "cancelled",
               "scheduled"
             ],
             "title": "Status",
@@ -1421,6 +1423,246 @@
       "event_id"
     ],
     "title": "CalendarEventResponse",
+    "type": "object"
+  },
+  "HangoutOverview": {
+    "$defs": {
+      "Approval": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "approve",
+              "decline"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "proposal_id": {
+            "title": "Proposal Id",
+            "type": "string"
+          },
+          "user_id": {
+            "pattern": "^demo-[a-z0-9-]+$",
+            "title": "User Id",
+            "type": "string"
+          },
+          "decided_at": {
+            "format": "date-time",
+            "title": "Decided At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "proposal_id",
+          "user_id",
+          "decided_at"
+        ],
+        "title": "Approval",
+        "type": "object"
+      },
+      "CandidateSlot": {
+        "additionalProperties": false,
+        "description": "Pure interval returned by deterministic intersection.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "CandidateSlot",
+        "type": "object"
+      },
+      "HangoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "invitee_id": {
+            "pattern": "^demo-[a-z0-9-]+$",
+            "title": "Invitee Id",
+            "type": "string"
+          },
+          "allowed_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Activities",
+            "type": "array"
+          },
+          "allowed_durations": {
+            "items": {
+              "maximum": 120,
+              "minimum": 30,
+              "multipleOf": 30,
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Allowed Durations",
+            "type": "array"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "requester_id": {
+            "pattern": "^demo-[a-z0-9-]+$",
+            "title": "Requester Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "invitee_id",
+          "allowed_activities",
+          "allowed_durations",
+          "id",
+          "requester_id"
+        ],
+        "title": "HangoutRequest",
+        "type": "object"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "enum": [
+              "coffee",
+              "meal",
+              "walk",
+              "study",
+              "concert"
+            ],
+            "title": "Activity",
+            "type": "string"
+          },
+          "slot": {
+            "$ref": "#/$defs/CandidateSlot"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location"
+          },
+          "status": {
+            "default": "pending",
+            "enum": [
+              "pending",
+              "approved",
+              "declined",
+              "cancelled",
+              "scheduled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "activity",
+          "slot",
+          "id",
+          "request_id"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
+      "ProposalResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "proposal": {
+            "$ref": "#/$defs/Proposal"
+          },
+          "approvals": {
+            "items": {
+              "$ref": "#/$defs/Approval"
+            },
+            "title": "Approvals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proposal",
+          "approvals"
+        ],
+        "title": "ProposalResponse",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "request": {
+        "$ref": "#/$defs/HangoutRequest"
+      },
+      "proposals": {
+        "items": {
+          "$ref": "#/$defs/ProposalResponse"
+        },
+        "title": "Proposals",
+        "type": "array"
+      }
+    },
+    "required": [
+      "request",
+      "proposals"
+    ],
+    "title": "HangoutOverview",
     "type": "object"
   }
 }

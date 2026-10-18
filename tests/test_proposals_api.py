@@ -42,7 +42,10 @@ def test_create_and_both_participants_view_pending_plan(prepared):
     for user_id in (request.requester_id, request.invitee_id):
         result = client.get(f"/proposals/{proposal['id']}", headers=headers(user_id))
         assert result.status_code == 200
-        assert result.json() == {'proposal': proposal, 'approvals': []}
+        assert result.json()['proposal'] == proposal
+        assert len(result.json()['approvals']) == 1
+        assert result.json()['approvals'][0]['user_id'] == request.requester_id
+        assert result.json()['approvals'][0]['decision'] == 'approve'
 
 
 def test_invitee_can_create(prepared):
@@ -102,3 +105,24 @@ def test_server_fields_cannot_be_supplied(prepared, extra):
                            headers=headers(request.requester_id), json=plan() | extra)
     assert response.status_code == 422
     assert list_proposals_for_request(request.id) == []
+
+
+def test_list_request_proposals_is_participant_only_and_scoped(prepared):
+    client, request = prepared
+    path = f'/hangout-requests/{request.id}/proposals'
+    owner = headers(request.requester_id)
+    assert client.get(path, headers=owner).json() == []
+    proposal = client.post(path, headers=owner, json=plan()).json()
+    for user_id in (request.requester_id, request.invitee_id):
+        response = client.get(path, headers=headers(user_id))
+        assert response.status_code == 200
+        assert response.json() == [proposal]
+    outsider = headers('demo-kusum')
+    real = client.get(path, headers=outsider)
+    missing = client.get('/hangout-requests/missing/proposals', headers=outsider)
+    assert real.status_code == missing.status_code == 404
+    assert real.json() == missing.json()
+    assert client.get(path).status_code == 401
+    other = request.model_copy(update={'id': 'another-request'})
+    create_hangout_request(other)
+    assert client.get('/hangout-requests/another-request/proposals', headers=owner).json() == []

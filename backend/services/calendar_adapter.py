@@ -3,6 +3,11 @@ from typing import Protocol
 from backend.models import BusyInterval, Interval, Proposal
 
 class CalendarAdapter(Protocol):
+    """create_event must deduplicate the stable key at the calendar provider.
+
+    Retries can arrive after a timeout, process restart, or expired worker lease.
+    An in-memory key cache alone is insufficient for the real integration.
+    """
     async def get_busy(self, user_id: str, search: Interval) -> list[BusyInterval]: ...
     async def create_event(self, proposal: Proposal, participant_ids: list[str], idempotency_key: str) -> str: ...
 

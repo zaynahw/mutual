@@ -50,13 +50,21 @@ All timestamps are timezone-aware ISO 8601. Intervals are half-open [start,end);
 | POST /users/me/social-windows | SocialWindowCreate | 201 SocialWindow | Implemented; server generates ID and assigns caller; selected_friends requires accepted friends; invalid selections return 422 |
 | PUT /users/me/social-windows/{id} | SocialWindowCreate | 200 SocialWindow | Implemented; owner only; selected_friends selections validated; invalid selections return 422 |
 | DELETE /users/me/social-windows/{id} | none | 204 no body | Implemented; owner only |
-| POST /hangout-requests | HangoutRequestCreate | 201 HangoutRequest | Implemented; server assigns ID/requester; known distinct invitee |
+| POST /hangout-requests | HangoutRequestCreate; optional Idempotency-Key | 201 HangoutRequest | Implemented; server assigns ID/requester; known distinct invitee |
 | GET /hangout-requests | none | 200 HangoutRequest[] | Implemented; caller is requester/invitee; ordered by ID |
 | GET /hangout-requests/{id} | none | 200 HangoutRequest | Implemented; participants only; missing/non-owned returns identical 404 |
 | POST /hangout-requests/{id}/candidates | none | 200 CandidateOption[] | Implemented; participants only; both window policies and hard constraints enforced |
 
-| POST /hangout-requests/{id}/proposals | ProposalCreate | 201 Proposal | Participants only; fresh candidate validation; invalid/stale plan 409; inherited location |
-| GET /proposals/{id} | none | 200 ProposalResponse | Participants only; missing/non-owned 404; approvals currently empty |
+| POST /hangout-requests/{id}/proposals | ProposalCreate; optional Idempotency-Key | 201 Proposal | Participants only; fresh candidate validation; manual submit records caller approval; invalid/stale plan 409; inherited location |
+| GET /hangout-requests/{id}/proposals | none | 200 Proposal[] | Participants only; ordered by ID; missing/non-owned request returns identical 404 |
+| GET /proposals/{id} | none | 200 ProposalResponse | Participants only; missing/non-owned 404; stored approval decisions included |
+
+| POST /proposals/{id}/approvals | ApprovalCreate | 200 ProposalResponse | Participants only; server identity/time; same decision replay safe; changes or new decisions on closed plans return 409 |
+
+| POST /proposals/{id}/calendar-event | none; required Idempotency-Key header | 201 CalendarEventResponse; replay 200 | Participants only; both approvals, final availability check, durable claim and result |
+
+| GET /hangout-requests/overview | none | 200 HangoutOverview[] | Caller’s requests and proposal/approval summaries only; consistent read snapshot |
+| POST /proposals/{id}/replan | none | 200 ProposalResponse | Either participant; cancel unscheduled active options for this request; preserve history; calendar-write uncertainty returns 409 |
 
 ## Planned routes (not available)
 
@@ -64,8 +72,6 @@ All timestamps are timezone-aware ISO 8601. Intervals are half-open [start,end);
 |---|---|---|---|
 | PUT /users/me/settings | UserSettings | 200 User | Owner only; validate selected friend relationships |
 | POST /hangout-requests/{id}/negotiate | none | 201 Proposal | Explicit user action; backend coordinates agents and validates result; 409 if no match |
-| POST /proposals/{id}/approvals | ApprovalCreate | 200 ProposalResponse | Caller must be participant; server supplies identity/time |
-| POST /proposals/{id}/calendar-event | none; Idempotency-Key header | 201 CalendarEventResponse; replay 200 | Both approvals and final validation required |
 
 OAuth routes belong to the calendar lane and are not wired in this checkout.
 No GET /users/{id}/friends endpoint exists; accepted relationships are available
@@ -84,7 +90,7 @@ in either direction. Selected friends requires both explicit selection and that
 relationship. Creation/edit validates every selection: self, unknown, pending,
 declined, or removed users cause 422 without writing changes. Old windows may
 retain stale IDs, but those people no longer qualify for friend-based access.
-The frontend selected-friend controls are not connected yet.
+The demo selected-friend picker uses accepted relationships and preserves saved IDs during editing. Revoked friends are flagged for removal before saving.
 
 Calendar sharing defaults to private and is independent of window visibility.
 Calendar free time alone never grants social availability. Browsing and matching
@@ -142,19 +148,34 @@ or event creation happens in the candidates operation. Groups are not supported.
 
 ## Proposal lifecycle
 
-Proposal creation and viewing are implemented. Approval and event actions remain planned. A proposal must select a request-allowed
+Proposal creation, viewing, and approval decisions are implemented. Mock calendar finalization is implemented; Google integration remains separate. A proposal must select a request-allowed
 activity and exact allowed duration entirely within valid activity-specific
 availability. Location carries over from the request. Backend validates agent or
 manual output against current constraints and permissions.
 
-Pending -> approved only after both distinct participants approve the same
-immutable plan. Either decline closes it. Another suggestion or changed plan
-requires a new proposal and fresh approvals. Repeated same decisions are
-idempotent; changing recorded decisions returns 409.
+Manual POST proposals atomically record the submitting caller’s approval of the
+exact plan. Internal agent recommendations record no approvals. A proposal stays
+pending until the other participant responds. Pending -> approved only after both distinct participants approve the same
+immutable plan. Either decline closes it. Cancelled proposals are also closed and hidden in the demo. Another suggestion or changed plan
+requires a new proposal and fresh approvals. Repeated same decisions on the agreed proposal are
+idempotent; changing recorded decisions returns 409. Once a request has an
+approved or scheduled proposal, new proposals and decisions on competing options
+return 409. The check and write share a transaction so only one option can win.
+Declined and competing records remain available through the participant-only API
+for history; the demo hides declined options and shows only the agreed option.
 
 Before event creation, recheck permissions, constraints, approvals, and free/busy.
-Serialize finalization, bind idempotency keys to proposal/payload, and avoid
-external duplicates on retry. Integration failure must not mark scheduled.
+Finalization uses a durable per-proposal claim; concurrent attempts return 409.
+Idempotency-Key accepts 1–128 ASCII letters, digits, underscores, or hyphens.
+Keys cannot be reused for other proposals. Completed results replay with 200,
+even with a new key, without contacting the adapter. Successful finalization
+stores the event ID and scheduled status atomically. Calendar failure returns a
+generic 502 and leaves the plan approved/retryable. Stale availability returns 409.
+No database transaction spans an external call. Crashed claims can be reclaimed
+after five minutes; adapter writes must deduplicate a stable proposal-derived key.
+The default mock simulates event creation; no Google event or invitation is sent.
+Real integration must also reconcile ambiguous provider success (including excluding
+an already-created event from its own conflict check) before claiming full recovery.
 
 ## Integration boundaries
 
@@ -200,3 +221,24 @@ preferences/schedules are fictional, and busy intervals are simulated.
 After editing models, run `.venv/bin/python -m backend.scripts.export_schemas`.
 Keep models, generated schemas, API contract, and examples aligned. Endpoint
 availability is recorded in the two route tables above.
+
+## Retry and replan behavior
+
+Request and manual proposal creation accept an optional Idempotency-Key using the
+same 1–128 character format as calendar finalization. Receipts bind actor, operation,
+and validated payload; changed input or another operation with the same key returns
+409. Identical retries return the original creation response without creating a
+second record or approval. Fetch the overview to see its current state afterward.
+The demo retains pending retry keys in sessionStorage as hashes/keys, without form
+contents; confirmed successful responses clear the client key.
+
+Replan closes the selected unscheduled option and all pending/approved alternatives
+for that request as cancelled, preserving approvals. Repeating cancellation is safe.
+Replacement proposals need fresh approvals. Scheduled events, active calendar claims,
+and attempts that might have reached the provider block replan. A failed availability
+check before any provider write permits replan. Migration marks old calendar attempts
+conservatively as possibly written. Changing request constraints creates a new request;
+the demo explicitly labels this action rather than modifying approved history.
+
+The default demo adapter includes completed demo-event bookings in both participants’
+free/busy results. The standalone MockCalendarAdapter remains fixture-only for tests.

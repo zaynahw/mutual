@@ -202,7 +202,7 @@ class Proposal(ProposalCreate):
     id: str
     request_id: str
     location: str | None = Field(default=None, max_length=200)
-    status: Literal["pending", "approved", "declined", "scheduled"] = "pending"
+    status: Literal["pending", "approved", "declined", "cancelled", "scheduled"] = "pending"
 
 
 class ApprovalCreate(Model):
@@ -223,3 +223,8 @@ class ProposalResponse(Model):
 class CalendarEventResponse(Model):
     proposal_id: str
     event_id: str
+
+
+class HangoutOverview(Model):
+    request: HangoutRequest
+    proposals: list[ProposalResponse]
