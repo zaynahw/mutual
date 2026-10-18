@@ -35,13 +35,13 @@ when proving real inference. Coordinate agent changes with its owner.
 
 | Path | Responsibility |
 |---|---|
-| `frontend/src/main.tsx` | Current demo entry point and identity selection |
-| `frontend/src/lib/api.ts` | Typed API calls and shared request/error handling |
-| `frontend/src/lib/time.ts` | Profile-timezone date input conversion |
-| `frontend/src/components/Friendships.tsx` | Friend request/history/removal UI |
-| `frontend/src/components/SocialWindows.tsx` | Owner window state and API actions |
-| `frontend/src/components/SocialWindowForm.tsx` | Form presentation |
-| `frontend/src/components/SocialWindowList.tsx` | Window list and edit/delete controls |
+| `frontend/src/demo/main.tsx` | Current demo entry point and identity selection |
+| `frontend/src/demo/lib/api.ts` | Typed API calls and shared request/error handling |
+| `frontend/src/demo/lib/time.ts` | Profile-timezone date input conversion |
+| `frontend/src/demo/components/Friendships.tsx` | Friend request/history/removal UI |
+| `frontend/src/demo/components/SocialWindows.tsx` | Owner window state and API actions |
+| `frontend/src/demo/components/SocialWindowForm.tsx` | Form presentation |
+| `frontend/src/demo/components/SocialWindowList.tsx` | Window list and edit/delete controls |
 | `backend/main.py` | FastAPI app, CORS, router registration, health |
 | `backend/models.py` | Pydantic domain, input, and response schemas |
 | `backend/dependencies.py` | Demo identity, participant access, calendar injection |
@@ -50,7 +50,7 @@ when proving real inference. Coordinate agent changes with its owner.
 | `backend/repositories.py` | User and social-window persistence |
 | `backend/friendships.py` | Relationship creation, responses, removal, lookup |
 | `backend/hangouts.py` | Request insertion and retrieval |
-| `backend/proposals.py` | Pending proposal insertion and retrieval; no routes yet |
+| `backend/proposals.py` | Pending proposal insertion and retrieval |
 | `backend/services/permissions.py` | Audience checks and selected-friend validation |
 | `backend/services/schedule.py` | Permission-filtered schedule projection |
 | `backend/services/scheduling.py` | Pure interval intersection and busy subtraction |
@@ -93,14 +93,16 @@ database has a proposals table and a validation service. The service regenerates
 candidates and requires the activity, exact duration, and entire proposed interval
 to fit one valid option, then assigns an ID and inherits the request location.
 No partial proposal is saved on invalid recommendations or calendar failure.
-Participant access routes, approvals, and recommendation-source labeling are not
-implemented yet. Caller authorization must precede calling the service, and final
+Participant routes enforce request ownership before creation and proposal ownership
+before retrieval. Approvals and recommendation-source labeling are not implemented
+yet; retrieval returns an empty approvals list. Final
 calendar creation must recheck availability; saving a proposal is not a reservation.
 
 Internal repository functions are not authorization boundaries. User records
 contain private settings. Routes must project PublicUser for the directory and
 verify participation before exposing requests. ParticipantRequest centralizes
-that request check; friendship_errors maps known friendship failures locally.
+that request check; ParticipantProposal checks the parent request for saved plans.
+friendship_errors maps known friendship failures locally.
 
 ## Visibility and scheduling
 
@@ -142,6 +144,10 @@ planned services are implemented; route status is tracked in contracts/api.md.
 
 ## Testing and demo UI behavior
 
+The backend demo has its own entry, frontend/demo.html, and lives entirely under
+frontend/src/demo/. The main index.html/main.tsx entry is reserved for the product
+frontend. Vite builds both pages; use /demo.html for backend testing.
+
 Test setup in tests/conftest.py is function-scoped: database_path selects a
 nonexistent file, initialized_database creates empty tables, and seeded_database
 adds demo users/windows. Specialized adapter fixtures stay local. Tests never
@@ -152,4 +158,6 @@ rejects DST gaps/repeated times, resets on identity change, and confirms deletio
 Window deletion has no undo. The friendship panel confirms removal and supports
 refreshing state from another tab. Cancelling a browser request does not undo an
 already-received backend write. Selected-friends controls and new schedule/request
-routes still need wiring into the final frontend design.
+routes still need wiring into the final frontend design. The separate demo now
+supports schedule browsing, request creation/listing, candidate generation, exact
+manual proposal creation, and participant-only proposal lookup by ID.

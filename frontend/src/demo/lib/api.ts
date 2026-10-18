@@ -130,3 +130,46 @@ export const removeFriendship = (userId: string, requestId: string, signal: Abor
   requestJson<FriendRequest>(`${friendshipsPath}/${encodeURIComponent(requestId)}/remove`, {
     userId, signal, method: 'POST',
   });
+
+export interface Interval { start: string; end: string }
+export interface ScheduleResponse {
+  user: PublicUser;
+  social_windows: (Interval & { id: string; allowed_activities: Activity[] })[];
+  calendar_busy: Interval[] | null;
+}
+export type Duration = 30 | 60 | 90 | 120;
+export interface HangoutInput extends Interval {
+  invitee_id: string;
+  allowed_activities: Activity[];
+  allowed_durations: Duration[];
+  location: string | null;
+}
+export interface HangoutRequest extends HangoutInput { id: string; requester_id: string }
+export interface CandidateOption {
+  slot: Interval;
+  eligible_activities: Activity[];
+  eligible_durations: Duration[];
+}
+export interface ProposalInput { activity: Activity; slot: Interval }
+export interface Proposal extends ProposalInput {
+  id: string;
+  request_id: string;
+  location: string | null;
+  status: 'pending' | 'approved' | 'declined' | 'scheduled';
+}
+export interface ProposalResponse {
+  proposal: Proposal;
+  approvals: { proposal_id: string; user_id: string; decision: 'approve' | 'decline'; decided_at: string }[];
+}
+export const getSchedule = (userId: string, ownerId: string, range: Interval, signal: AbortSignal) =>
+  requestJson<ScheduleResponse>(`/users/${encodeURIComponent(ownerId)}/schedule?${new URLSearchParams({ ...range })}`, { userId, signal });
+export const listHangouts = (userId: string, signal: AbortSignal) =>
+  requestJson<HangoutRequest[]>('/hangout-requests', { userId, signal });
+export const createHangout = (userId: string, body: HangoutInput, signal: AbortSignal) =>
+  requestJson<HangoutRequest>('/hangout-requests', { userId, signal, method: 'POST', body });
+export const getCandidates = (userId: string, id: string, signal: AbortSignal) =>
+  requestJson<CandidateOption[]>(`/hangout-requests/${encodeURIComponent(id)}/candidates`, { userId, signal, method: 'POST' });
+export const createProposal = (userId: string, id: string, body: ProposalInput, signal: AbortSignal) =>
+  requestJson<Proposal>(`/hangout-requests/${encodeURIComponent(id)}/proposals`, { userId, signal, method: 'POST', body });
+export const getProposal = (userId: string, id: string, signal: AbortSignal) =>
+  requestJson<ProposalResponse>(`/proposals/${encodeURIComponent(id)}`, { userId, signal });

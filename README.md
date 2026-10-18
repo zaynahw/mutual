@@ -27,7 +27,7 @@ npm ci
 npm run dev
 ```
 
-Open [the demo panel](http://localhost:5173) or
+Open [the demo panel](http://localhost:5173/demo.html) or
 [interactive API docs](http://localhost:8000/docs).
 Root `.env` is a template and is not automatically loaded. Set backend variables
 in the shell; set `VITE_API_BASE_URL` in the shell or `frontend/.env.local`.
@@ -42,7 +42,7 @@ CORS permits the default frontend origin, `http://localhost:5173`.
 - A local Ollama time-slot ranker, callable through its adapter but not yet wired
   to a negotiation route. See [agent setup](agent/README.md).
 
-The current frontend is an integration panel for profiles, friendships, and owner
+The separate `/demo.html` frontend is an integration panel for profiles, friendships, and owner
 windows. Selected-friends controls, shared schedule browsing, requests, and
 candidates are not connected to this panel yet; use the API docs for those routes.
 The default calendar dependency uses simulated busy intervals. Google OAuth and
@@ -85,3 +85,14 @@ After editing Pydantic models, regenerate JSON Schemas from the repository root:
 - [API contract and implementation status](contracts/api.md)
 - [JSON Schemas](contracts/schemas.json) and [demo examples](contracts/examples.json)
 - [Ownership, privacy, and coding guidelines](AGENTS.md)
+
+### Backend demo walkthrough
+
+Open http://localhost:5173/demo.html with both servers running. Select a demo
+identity, establish any needed friendship, and use View a schedule to test
+visibility. Create a hangout request, find valid times, and select an exact plan
+to save a pending proposal. Copy its ID, switch to the other participant, and
+load it in View a saved proposal. Dates default to October 18, 2026 to match the
+fixtures; all inputs/display use the selected profile timezone. Calendar data
+is mocked. Sharing settings are read-only; agent calls, approvals, and calendar
+event creation are not available in this demo flow yet.
