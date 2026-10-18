@@ -1,12 +1,16 @@
 """Create and read person-first requests; matching is a separate operation."""
 from uuid import uuid4
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from backend.dependencies import CurrentUser, ParticipantRequest
+from backend.dependencies import CurrentUser, ParticipantRequest, get_calendar_adapter
 from backend.hangouts import create_hangout_request, list_hangout_requests
-from backend.models import HangoutRequest, HangoutRequestCreate
+from backend.models import CandidateOption, HangoutRequest, HangoutRequestCreate
 from backend.repositories import get_user
+from backend.services.calendar_adapter import CalendarAdapter
+from backend.services.candidates import build_candidates
+from backend.services.schedule import CalendarUnavailable
 
 router = APIRouter(prefix="/hangout-requests", tags=["hangout requests"])
 
@@ -32,3 +36,16 @@ def get_my_requests(current_user: CurrentUser) -> list[HangoutRequest]:
 @router.get("/{request_id}", response_model=HangoutRequest)
 def get_request(request: ParticipantRequest) -> HangoutRequest:
     return request
+
+
+@router.post("/{request_id}/candidates", response_model=list[CandidateOption])
+async def get_candidates(
+    request: ParticipantRequest,
+    calendar: Annotated[CalendarAdapter, Depends(get_calendar_adapter)],
+) -> list[CandidateOption]:
+    try:
+        return await build_candidates(request, calendar)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail="Participant not found") from error
+    except CalendarUnavailable as error:
+        raise HTTPException(status_code=502, detail="Calendar availability is temporarily unavailable") from error
