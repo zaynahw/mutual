@@ -5,6 +5,8 @@ const activities: Activity[] = ['coffee', 'meal', 'walk', 'study', 'concert'];
 type Setter<T> = Dispatch<SetStateAction<T>>;
 
 interface Props {
+  title: string;
+  setTitle: Setter<string>;
   friends: PublicUser[];
   selectedFriends: string[];
   setSelectedFriends: Setter<string[]>;
@@ -27,13 +29,14 @@ interface Props {
 }
 
 export function SocialWindowForm({
-  friends, selectedFriends, setSelectedFriends, editingId, saving, start, end, chosen, audience, mode, error, notice,
+  title,setTitle,friends, selectedFriends, setSelectedFriends, editingId, saving, start, end, chosen, audience, mode, error, notice,
   setStart, setEnd, setChosen, setAudience, setMode, onSubmit, onCancel,
 }: Props) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <h3 className="text-lg font-medium">{editingId ? 'Edit window' : 'Add a window'}</h3>
       <fieldset disabled={saving} className="space-y-4">
+        <label className="block">Concert artist or plan name (optional)<input maxLength={100} value={title} onChange={e=>setTitle(e.target.value)} className="mt-1 block w-full rounded border border-stone-300 p-2"/></label>
         <label className="block">
           Start
           <input type="datetime-local" required value={start} onChange={event => setStart(event.target.value)} className="mt-1 block w-full rounded border border-stone-300 p-2" />

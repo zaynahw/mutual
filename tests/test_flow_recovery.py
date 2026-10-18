@@ -62,7 +62,7 @@ def test_internal_agent_recommendation_does_not_approve_for_anyone(prepared):
 
 def test_hangout_creation_receipt_is_actor_and_payload_bound(prepared):
     client, request = prepared
-    body = request.model_dump(mode='json',exclude={'id','requester_id','origin'})
+    body = request.model_dump(mode='json',exclude={'id','requester_id','origin','join_window_id','join_window_title'})
     response = client.post('/hangout-requests',headers=headers(key='request-key'),json=body)
     assert response.status_code == 201
     assert client.post('/hangout-requests',headers=headers(key='request-key'),json=body).json() == response.json()

@@ -13,7 +13,7 @@ function getInitials(name) {
     .toUpperCase();
 }
 
-function FriendPicker({ currentUserId, selectedFriendId, onSelect }) {
+function FriendPicker({ currentUserId, selectedFriendId, onSelect, disabled=false, active: enabled=true }) {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,6 +21,7 @@ function FriendPicker({ currentUserId, selectedFriendId, onSelect }) {
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    if(!enabled)return;
     let active = true;
     setLoading(true);
     setError('');
@@ -30,7 +31,7 @@ function FriendPicker({ currentUserId, selectedFriendId, onSelect }) {
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
-  }, [currentUserId, retry]);
+  }, [currentUserId, retry, enabled]);
 
   const showSearch = friends.length > 5;
   const visibleFriends = showSearch
@@ -47,6 +48,7 @@ function FriendPicker({ currentUserId, selectedFriendId, onSelect }) {
             : <div className="friend-picker__list">
               {visibleFriends.map((friend) => <button
                 type="button"
+                disabled={disabled}
                 className={`friend-picker__card${friend.id === selectedFriendId ? ' selected' : ''}`}
                 aria-pressed={friend.id === selectedFriendId}
                 onClick={() => onSelect(friend)}

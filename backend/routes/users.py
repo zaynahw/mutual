@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.dependencies import CurrentUser, get_calendar_adapter
-from backend.models import Interval, MatchingSettings, PreferenceNoteUpdate, PublicUser, ScheduleResponse, User
+from backend.models import CommunityMembershipUpdate, Interval, MatchingSettings, PreferenceNoteUpdate, PublicUser, ScheduleResponse, User
 from backend.repositories import get_user, list_users, update_preference_note, update_matching_settings
 from backend.services.calendar_adapter import CalendarAdapter
 from backend.services.schedule import CalendarUnavailable, build_schedule
@@ -42,7 +42,7 @@ async def get_schedule(
     calendar: Annotated[CalendarAdapter, Depends(get_calendar_adapter)],
 ) -> ScheduleResponse:
     owner = get_user(user_id)
-    if owner is None:
+    if owner is None or owner.is_demo != current_user.is_demo:
         raise HTTPException(status_code=404, detail="User not found")
     try:
         return await build_schedule(owner=owner, viewer=current_user, search=search, calendar=calendar)
@@ -56,3 +56,9 @@ def edit_matching_settings(body: MatchingSettings, current_user: CurrentUser) ->
         return update_matching_settings(current_user.id, body)
     except LookupError as error:
         raise HTTPException(status_code=404, detail="User not found") from error
+
+
+@router.patch('/me/community', response_model=User)
+def edit_community(body: CommunityMembershipUpdate, current_user: CurrentUser) -> User:
+    from backend.repositories import update_community_membership
+    return update_community_membership(current_user.id, body.community)

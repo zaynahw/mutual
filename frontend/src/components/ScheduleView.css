@@ -235,3 +235,25 @@ button.schedule-view__block {
   .schedule-view__heading { flex-direction: column; }
   .schedule-view__controls { flex-wrap: wrap; }
 }
+/* Source colors and lanes keep provider busy blocks from hiding Mutual plans. */
+.schedule-view {border-radius:16px;padding:20px;box-shadow:0 4px 20px #58344805;}
+.schedule-view__heading {gap:14px;flex-wrap:wrap;justify-content:space-between;}
+.schedule-view__legend {display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px;}
+.schedule-view__legend-item {display:flex;align-items:center;gap:6px;border:1px solid #e8e0e7;background:#fff;border-radius:20px;padding:6px 9px;font-size:10px;color:#605160;cursor:pointer;}
+.schedule-view__legend-item i {width:8px;height:8px;border-radius:3px;background:#79a9dd;}
+.schedule-view__legend-item--social i {background:#69b697;}
+.schedule-view__legend-item--proposal i {background:#ba76b1;}
+.schedule-view__legend-item[aria-pressed=false] {opacity:.45;text-decoration:line-through;}
+.schedule-view__caption {font-size:10px;color:#847582;margin:0 0 14px;line-height:1.6;}
+.schedule-view__grid {grid-template-rows:36px 640px;}
+.schedule-view__day-heading {padding:7px 0;background:#fcf9fc;border-radius:6px 6px 0 0;}
+.schedule-view__block {border-radius:5px;border-width:0 0 0 3px;border-style:solid;padding:3px 5px;font-size:10px;}
+.schedule-view__block span,.schedule-view__block small {display:block;overflow:hidden;text-overflow:ellipsis;}
+.schedule-view__block span {font-weight:600;}
+.schedule-view__block small {font-size:8px;margin-top:1px;}
+.schedule-view__block--busy {z-index:1;border-color:#7aa8d9;background:#edf4fd;color:#406c99;}
+.schedule-view__block--social {z-index:2;right:32%;border-color:#65ad91;background:#e2f4eb;color:#2b7257;}
+.schedule-view__block--proposal {z-index:4;left:24%;border-color:#b477ad;background:#f3e3f2;color:#713d69;box-shadow:0 1px 4px #75406b15;}
+.schedule-view__block--approved {border-color:#b477ad;background:#f3e3f2;color:#713d69;}
+.schedule-view__block--scheduled {border-color:#3a8e86;background:#d7f1ed;color:#246b64;}
+button.schedule-view__block {display:block;text-align:left;}

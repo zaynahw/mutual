@@ -15,6 +15,7 @@ export function SocialWindows({ user, users, active }: { user: User; users: Publ
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+  const [title,setTitle]=React.useState('');
   const [start, setStart] = React.useState('');
   const [end, setEnd] = React.useState('');
   const [selectedFriends, setSelectedFriends] = React.useState<string[]>([]);
@@ -45,6 +46,7 @@ export function SocialWindows({ user, users, active }: { user: User; users: Publ
 
   function resetForm() {
     setEditingId(null);
+    setTitle('');
     setStart('');
     setEnd('');
     setChosen([]); setSelectedFriends([]);
@@ -53,7 +55,7 @@ export function SocialWindows({ user, users, active }: { user: User; users: Publ
   }
 
   function beginEdit(window: SocialWindow) {
-    setEditingId(window.id);
+    setEditingId(window.id);setTitle(window.title||'');
     setStart(isoToZonedInput(window.start, user.timezone));
     setEnd(isoToZonedInput(window.end, user.timezone));
     setChosen([...window.allowed_activities]);
@@ -93,7 +95,7 @@ export function SocialWindows({ user, users, active }: { user: User; users: Publ
       setSaving(true);
       if (audience === 'selected_friends' && (loading || listError || selectedFriends.length === 0)) throw new Error('Choose at least one currently accepted friend.');
       const input: SocialWindowInput = {
-        start: startISO, end: endISO, allowed_activities: chosen,
+        title:title.trim()||null, start: startISO, end: endISO, allowed_activities: chosen,
         visibility: { audience, selected_friend_ids: audience === 'selected_friends' ? selectedFriends : [] }, sharing_mode: mode,
       };
       if (editingId) await updateMyWindow(user.id, editingId, input, controller.signal);
@@ -112,6 +114,7 @@ export function SocialWindows({ user, users, active }: { user: User; users: Publ
       <p className="mt-2 text-sm text-stone-600">Your saved windows, including private ones. All times below use {user.timezone}. Calendar conflicts will be checked later during matching.</p></div>
     <div className="grid gap-8 md:grid-cols-2">
       <SocialWindowForm
+        title={title} setTitle={setTitle}
         editingId={editingId} saving={saving} start={start} end={end}
         chosen={chosen} audience={audience} friends={friends} selectedFriends={selectedFriends} setSelectedFriends={setSelectedFriends} mode={mode} error={error} notice={notice}
         setStart={setStart} setEnd={setEnd} setChosen={setChosen}

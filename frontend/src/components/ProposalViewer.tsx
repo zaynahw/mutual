@@ -37,7 +37,7 @@ export function ProposalViewer({ user, users, value, onChange, onRefresh, calend
     {busy && <p role="status">Saving…</p>}
     {error && <p role="alert">{error}</p>}
     <p className="text-sm font-medium">Source: {{manual:'Manually proposed',local_agent:'Local AI negotiation',demo_fallback:'Deterministic fallback',mock:'Mock negotiation — no AI inference'}[result.proposal.source]}</p>
-    <p className="text-xl font-semibold capitalize">{result.proposal.activity}</p>
+    <p className="text-xl font-semibold">{result.proposal.title||result.proposal.activity}</p>{result.proposal.title&&<p className="capitalize">{result.proposal.activity}</p>}
     <p>{dateTime(result.proposal.slot.start, user.timezone)} – {dateTime(result.proposal.slot.end, user.timezone)}</p>
     <p>Location: {result.proposal.location || 'To be arranged'}</p>
     <p className="font-medium">{result.proposal.status === 'approved' ? `Both approved — ready to add to ${calendarMode==='google'?'Google Calendar':'the demo calendar'}.` : result.proposal.status === 'scheduled' ? `Scheduled in ${calendarMode==='google'?'Google Calendar':'the demo calendar'}.` : result.proposal.status === 'cancelled' ? 'Closed for replanning.' : result.proposal.status === 'declined' ? 'Declined.' : mine ? 'You approved. Waiting for the other person.' : 'Your response is needed.'}</p>

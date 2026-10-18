@@ -68,7 +68,7 @@ def test_community_view_has_no_private_fields_or_calendar_call(setup):
     assert calendar.calls == []
     assert set(response.json()['user']) == {'id','display_name','is_demo','community'}
     for window in response.json()['social_windows']:
-        assert set(window) == {'id','start','end','allowed_activities'}
+        assert set(window) == {'id','start','end','allowed_activities','title'}
 
 
 def test_friends_selected_friends_and_removal_revoke_access(setup):
@@ -190,3 +190,11 @@ def test_owner_calendar_access_even_when_private(setup):
     owner.calendar_sharing = VisibilityPolicy(audience='private')
     save_user(owner)
     assert view(client, viewer=owner.id).json()['calendar_busy'] is not None
+
+
+def test_schedule_does_not_cross_demo_and_real_identity_modes(setup):
+    client, calendar = setup
+    user = get_user('demo-zaynah')
+    save_user(user.model_copy(update={'is_demo':False}))
+    assert view(client).status_code == 404
+    assert calendar.calls == []

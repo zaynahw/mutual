@@ -39,7 +39,7 @@ export function SocialWindowList({
         <ul className="space-y-3">
           {windows.map(window => (
             <li key={window.id} className="space-y-2 rounded-lg border border-stone-200 p-4">
-              <p className="font-medium">{window.allowed_activities.join(', ')}</p>
+              <p className="font-medium">{window.title||window.allowed_activities.join(', ')}</p>{window.title&&<p>{window.allowed_activities.join(', ')}</p>}
               <p className="text-sm">{displayTime(window.start)} → {displayTime(window.end)}</p>
               <p className="text-sm text-stone-600">
                 {window.visibility.audience.replaceAll('_', ' ')} · {window.sharing_mode === 'matching_only' ? 'Matching only' : 'Visible'}

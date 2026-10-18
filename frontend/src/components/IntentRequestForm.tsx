@@ -1,9 +1,10 @@
 import React from 'react';
 import { interpretIntent, sendIntent, listFriendRequests } from '../lib/api';
-import type { IntentDraft, PublicUser, User, HangoutRequest } from '../lib/api';
+import type { IntentDraft, PublicUser, User, HangoutRequest, AvailabilityCard } from '../lib/api';
+import FriendPicker from './FriendPicker.jsx';
 import { isoToZonedInput } from '../lib/time';
 
-export function IntentRequestForm({user, users, onSaved, active=true}: {active?:boolean; user: User; users: PublicUser[]; onSaved: (request: HangoutRequest) => void}) {
+export function IntentRequestForm({user, users, onSaved, active=true, initialIdea}: {initialIdea?:AvailabilityCard|null;active?:boolean; user: User; users: PublicUser[]; onSaved: (request: HangoutRequest) => void}) {
   const today = isoToZonedInput(new Date().toISOString(),user.timezone).slice(0,10);
   const nextDay = (offset: number) => new Date(Date.parse(`${today}T12:00:00Z`)+offset*86400000).toISOString().slice(0,10);
   const [friends,setFriends] = React.useState<string[]>([]);
@@ -23,6 +24,16 @@ export function IntentRequestForm({user, users, onSaved, active=true}: {active?:
     }).catch(e => {if (!controller.signal.aborted) setError(e.message);});
     return () => controller.abort();
   },[user.id,active]);
+  React.useEffect(() => {
+    if(!initialIdea) return;
+    setInvitee(initialIdea.owner.id);
+    const start=isoToZonedInput(initialIdea.window.start,user.timezone);
+    const end=isoToZonedInput(initialIdea.window.end,user.timezone);
+    setDays([start.slice(0,10)]);
+    const range=start.slice(0,10)===end.slice(0,10)?` between ${start.slice(11,16)} and ${end.slice(11,16)}`:'';
+    setMessage(`I'd like ${initialIdea.window.allowed_activities.join(' or ')}${range}.`);
+    setPreview(null);setError('');
+  },[initialIdea,user.timezone]);
   React.useEffect(() => () => pending.current?.abort(),[]);
   function change() { setPreview(null); setError(''); }
   async function submit(send: boolean) {
@@ -38,7 +49,7 @@ export function IntentRequestForm({user, users, onSaved, active=true}: {active?:
   return <section className="demo-choice space-y-4">
     <p>Tell your agent what sounds good. It will find a plan that also fits your friend’s availability and preferences.</p>
     <form className="demo-form" onSubmit={e => {e.preventDefault(); void submit(false);}}>
-      <label>Who?<select required disabled={busy} value={invitee} onChange={e => {setInvitee(e.target.value);change();}}><option value="">Choose an accepted friend</option>{users.filter(p => friends.includes(p.id)).map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}</select></label>
+      <div className="w-full"><FriendPicker currentUserId={user.id} selectedFriendId={invitee||null} disabled={busy} active={active} onSelect={friend=>{setInvitee(friend.id);change();}}/></div>
       <fieldset disabled={busy} className="w-full space-y-2"><legend>Which days? · {user.timezone}</legend>
         <div className="flex gap-2">{[[today,'Today'],[nextDay(1),'Tomorrow']].map(([day,label]) => <label key={day}><input type="checkbox" checked={days.includes(day)} onChange={() => {setDays(current => current.includes(day) ? current.filter(d => d!==day) : [...current,day].sort());change();}} /> {label}</label>)}</div>
         <label>Add a specific date<input type="date" min={today} max={nextDay(14)} value="" onChange={e => {const day=e.target.value;if(day && !days.includes(day) && days.length<7) {setDays([...days,day].sort());change();}}}/></label>

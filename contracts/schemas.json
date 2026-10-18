@@ -73,6 +73,28 @@
     "title": "Preferences",
     "type": "object"
   },
+  "CommunityMembershipUpdate": {
+    "additionalProperties": false,
+    "properties": {
+      "community": {
+        "anyOf": [
+          {
+            "const": "georgia_tech",
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Community"
+      }
+    },
+    "required": [
+      "community"
+    ],
+    "title": "CommunityMembershipUpdate",
+    "type": "object"
+  },
   "PreferenceNoteUpdate": {
     "additionalProperties": false,
     "properties": {
@@ -641,6 +663,19 @@
         "title": "End",
         "type": "string"
       },
+      "title": {
+        "anyOf": [
+          {
+            "maxLength": 100,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Title"
+      },
       "allowed_activities": {
         "items": {
           "enum": [
@@ -718,6 +753,19 @@
         "title": "End",
         "type": "string"
       },
+      "title": {
+        "anyOf": [
+          {
+            "maxLength": 100,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Title"
+      },
       "allowed_activities": {
         "items": {
           "enum": [
@@ -783,6 +831,19 @@
         "title": "Id",
         "type": "string"
       },
+      "title": {
+        "anyOf": [
+          {
+            "maxLength": 100,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Title"
+      },
       "allowed_activities": {
         "items": {
           "enum": [
@@ -806,6 +867,129 @@
       "allowed_activities"
     ],
     "title": "SharedSocialWindow",
+    "type": "object"
+  },
+  "AvailabilityCard": {
+    "$defs": {
+      "PublicUser": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "pattern": "^(?:demo-[a-z0-9-]+|user-[a-f0-9]{32})$",
+            "title": "Id",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "is_demo": {
+            "default": true,
+            "title": "Is Demo",
+            "type": "boolean"
+          },
+          "community": {
+            "anyOf": [
+              {
+                "const": "georgia_tech",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "georgia_tech",
+            "title": "Community"
+          }
+        },
+        "required": [
+          "id",
+          "display_name"
+        ],
+        "title": "PublicUser",
+        "type": "object"
+      },
+      "SharedSocialWindow": {
+        "additionalProperties": false,
+        "description": "Viewer projection; excludes audience lists and matching-only windows.",
+        "properties": {
+          "start": {
+            "format": "date-time",
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "format": "date-time",
+            "title": "End",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "allowed_activities": {
+            "items": {
+              "enum": [
+                "coffee",
+                "meal",
+                "walk",
+                "study",
+                "concert"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Allowed Activities",
+            "type": "array"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "id",
+          "allowed_activities"
+        ],
+        "title": "SharedSocialWindow",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "owner": {
+        "$ref": "#/$defs/PublicUser"
+      },
+      "window": {
+        "$ref": "#/$defs/SharedSocialWindow"
+      },
+      "audience": {
+        "enum": [
+          "community",
+          "friends",
+          "selected_friends"
+        ],
+        "title": "Audience",
+        "type": "string"
+      }
+    },
+    "required": [
+      "owner",
+      "window",
+      "audience"
+    ],
+    "title": "AvailabilityCard",
     "type": "object"
   },
   "BusyInterval": {
@@ -913,6 +1097,19 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
           },
           "allowed_activities": {
             "items": {
@@ -1162,6 +1359,30 @@
         "default": null,
         "title": "Location"
       },
+      "join_window_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Join Window Id"
+      },
+      "join_window_title": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Join Window Title"
+      },
       "origin": {
         "default": "manual",
         "enum": [
@@ -1370,6 +1591,19 @@
       "slot": {
         "$ref": "#/$defs/CandidateSlot"
       },
+      "title": {
+        "anyOf": [
+          {
+            "maxLength": 100,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Title"
+      },
       "source": {
         "default": "manual",
         "enum": [
@@ -1552,6 +1786,19 @@
           },
           "slot": {
             "$ref": "#/$defs/CandidateSlot"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
           },
           "source": {
             "default": "manual",
@@ -1771,6 +2018,30 @@
             "default": null,
             "title": "Location"
           },
+          "join_window_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Join Window Id"
+          },
+          "join_window_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Join Window Title"
+          },
           "origin": {
             "default": "manual",
             "enum": [
@@ -1839,6 +2110,19 @@
           },
           "slot": {
             "$ref": "#/$defs/CandidateSlot"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
           },
           "source": {
             "default": "manual",
@@ -2056,6 +2340,19 @@
           },
           "slot": {
             "$ref": "#/$defs/CandidateSlot"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
           },
           "source": {
             "default": "manual",

@@ -115,3 +115,18 @@ def update_matching_settings(user_id: str, settings: MatchingSettings) -> User:
         updated = User.model_validate(data)
         connection.execute('UPDATE users SET data = ? WHERE id = ?', (updated.model_dump_json(), user_id))
         return updated
+
+
+def update_community_membership(user_id: str, community: str | None) -> User:
+    """Explicit opt-in to the open MVP community; not institutional verification."""
+    if community not in (None, 'georgia_tech'):
+        raise ValueError('Unknown community')
+    with connect() as connection:
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute('SELECT data FROM users WHERE id = ?', (user_id,)).fetchone()
+        if row is None:
+            raise LookupError('User not found')
+        user = User.model_validate_json(row['data'])
+        updated = user.model_copy(update={'community':community})
+        connection.execute('UPDATE users SET data = ? WHERE id = ?', (updated.model_dump_json(),user_id))
+    return updated

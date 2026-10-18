@@ -62,3 +62,38 @@ behavior must be tested with two approved Google test accounts.
 Suggested pitch wording: “Each personal agent evaluates permitted plans using
 its owner's private preferences. Their limited exchange helps find a compromise;
 the backend enforces boundaries, and both people decide whether to schedule it.”
+
+## Community discovery preview
+
+On `codex/community-demo`, the Community tab displays authorized shared social
+windows for the next seven days. Publish coffee, a walk, or concert availability
+using “Share a time you’re open to company.” Use the activity filters to discover
+people. Open View schedule & join, choose an exact activity/start/duration, and
+send a join request. Friends-only windows require an accepted friendship;
+community windows permit any current member. Each join request creates a
+two-person plan with zero initial approvals. Both people review it under My plans. People can edit/delete their shared windows
+under Availability. The board does not access provider calendars or private notes.
+
+The open MVP community is Georgia Tech. Accounts can explicitly join or leave
+under Community or My preferences, including personal Google accounts. This is
+self-selected membership, not institutional verification. Friends-only windows
+remain friendship restricted. Multiple custom communities and multi-person
+negotiation are future work.
+
+Calendar legend buttons toggle provider busy time (blue), shared availability
+(green), and Mutual plans (purple; scheduled plans teal). Provider blocks retain
+free/busy privacy; actual event titles are not fetched.
+
+
+The Community hub now includes an overall calendar and activity/people filters.
+Green labels identify accepted friends, purple labels identify non-friend community
+members, and blue labels identify the viewer's own shared windows. The labels do
+not expand access: the backend filters all shared windows first. Select a calendar
+block or Request to join to open that specific join form inside Community.
+Individual friend schedules also open from Friends → View shared schedule.
+
+My plans highlights incoming joins, approvals needed, waiting responses, and plans
+ready for calendar creation. It polls every 15 seconds while the app is visible
+and refreshes on focus; there is no push-notification service. New/updated markers
+compare proposal/approval fingerprints with per-account records stored in the
+current browser session. Mark updates seen does not count as human approval.

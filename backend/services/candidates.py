@@ -48,11 +48,13 @@ def _searches(request: HangoutRequest) -> list[Interval]:
 
 def _owner_windows(request: HangoutRequest, owner: User, participants: list[User], activity: str, search: Interval) -> list[Interval]:
     other = next(person for person in participants if person.id != owner.id)
+    if request.join_window_id and owner.id == request.invitee_id:
+        return [w for w in _eligible_windows(list_social_windows(owner.id), owner, participants, activity, search) if w.id == request.join_window_id]
     guided = owner.matching.mode == 'calendar_guided' or request.origin == 'intent' and owner.id == request.requester_id
     if not guided:
         return _eligible_windows(list_social_windows(owner.id), owner, participants, activity, search)
     # Opt-in is limited to current accepted friends, independent of browsing policy.
-    if not are_friends(owner.id, other.id):
+    if not are_friends(owner.id, other.id) and not request.join_window_id:
         return []
     zone = ZoneInfo(owner.timezone)
     day = search.start.astimezone(zone).date()
@@ -85,6 +87,17 @@ def _period_slots(slot: Interval, timezone_name: str) -> list[Interval]:
 def _calculate_options(
     request: HangoutRequest, participants: list[User], busy_by_user: dict[str, list[BusyInterval]],
 ) -> list[CandidateOption]:
+    if request.join_window_id:
+        owner = next(user for user in participants if user.id == request.invitee_id)
+        viewer = next(user for user in participants if user.id == request.requester_id)
+        window = next((w for w in list_social_windows(owner.id) if w.id == request.join_window_id), None)
+        if (window is None or window.sharing_mode != 'visible'
+                or (not are_friends(owner.id, viewer.id) and window.visibility.audience != 'community')
+                or not can_access(owner, viewer, window.visibility)
+                or request.join_window_title != window.title
+                or request.start < window.start or request.end > window.end
+                or any(a not in window.allowed_activities for a in request.allowed_activities)):
+            return []
     activities = [activity for activity in request.allowed_activities
                   if all(activity in user.hard_constraints.allowed_activities for user in participants)]
     durations = sorted(duration for duration in request.allowed_durations
