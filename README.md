@@ -27,7 +27,7 @@ npm ci
 npm run dev
 ```
 
-Open [the demo panel](http://localhost:5173/demo.html) or
+Open [the main app](http://localhost:5173/), [the demo panel](http://localhost:5173/demo.html), or
 [interactive API docs](http://localhost:8000/docs).
 Root `.env` is a template and is not automatically loaded. Set backend variables
 in the shell; set `VITE_API_BASE_URL` in the shell or `frontend/.env.local`.
@@ -137,3 +137,20 @@ if the backend was already running. Advanced manual search is still available.
 The same configured agent adapter handles interpretation and negotiation; mock or
 fallback previews are labeled. This is selected-date matching, not recurring rules
 or unrestricted chat. The confirmation step catches misinterpreted messages.
+
+### Integrated frontend
+
+Open http://localhost:5173/ for the main interface, using the frontend teammate's
+branding and calendar design with the current FastAPI backend. Navigation includes
+Overview, Plan with someone, My plans, Friends, Availability, and My preferences.
+The demo identity picker lets you test each participant's approval. There is no
+production login; Google Calendar integration is not wired into this branch, so
+calendar creation remains explicitly simulated. “Join me” posts are a separate,
+future feature; social windows currently grant matching availability.
+
+Shared API helpers live in `frontend/src/lib/`, reusable API-backed forms and
+proposal controls in `frontend/src/components/`, and the main navigation/dashboard
+in `frontend/src/App.tsx`. `PlanWorkspace.tsx` coordinates negotiation and plan
+review. The imported calendar uses a small `frontend/src/api.js` compatibility
+adapter over the same typed API client, without its old frontend-only fixtures.
+The independent `/demo.html` testing panel reuses these helpers and components.

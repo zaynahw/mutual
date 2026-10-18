@@ -3,7 +3,7 @@ import { interpretIntent, sendIntent, listFriendRequests } from '../lib/api';
 import type { IntentDraft, PublicUser, User, HangoutRequest } from '../lib/api';
 import { isoToZonedInput } from '../lib/time';
 
-export function IntentRequestForm({user, users, onSaved}: {user: User; users: PublicUser[]; onSaved: (request: HangoutRequest) => void}) {
+export function IntentRequestForm({user, users, onSaved, active=true}: {active?:boolean; user: User; users: PublicUser[]; onSaved: (request: HangoutRequest) => void}) {
   const today = isoToZonedInput(new Date().toISOString(),user.timezone).slice(0,10);
   const nextDay = (offset: number) => new Date(Date.parse(`${today}T12:00:00Z`)+offset*86400000).toISOString().slice(0,10);
   const [friends,setFriends] = React.useState<string[]>([]);
@@ -15,20 +15,21 @@ export function IntentRequestForm({user, users, onSaved}: {user: User; users: Pu
   const [error,setError] = React.useState('');
   const pending = React.useRef<AbortController|null>(null);
   React.useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     listFriendRequests(user.id,controller.signal).then(items => {
       const ids = items.filter(item => item.status === 'accepted').map(item => item.sender_id === user.id ? item.recipient_id : item.sender_id);
       setFriends(ids); setInvitee(current => ids.includes(current) ? current : ids[0] || '');
     }).catch(e => {if (!controller.signal.aborted) setError(e.message);});
     return () => controller.abort();
-  },[user.id]);
+  },[user.id,active]);
   React.useEffect(() => () => pending.current?.abort(),[]);
   function change() { setPreview(null); setError(''); }
   async function submit(send: boolean) {
     if (pending.current) return;
     const controller = new AbortController(); pending.current = controller; setBusy(true); setError('');
     try {
-      if (send && preview) { const request = await sendIntent(user.id,preview.id,controller.signal); if (!controller.signal.aborted) onSaved(request); }
+      if (send && preview) { const request = await sendIntent(user.id,preview.id,controller.signal); if (!controller.signal.aborted) {setPreview(null);setMessage('');onSaved(request);} }
       else { const result = await interpretIntent(user.id,{invitee_id:invitee,days,message},controller.signal); if (!controller.signal.aborted) setPreview(result); }
     } catch(e) {if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Could not prepare request.');}
     finally {if (!controller.signal.aborted) {pending.current = null;setBusy(false);}}
@@ -54,9 +55,9 @@ export function IntentRequestForm({user, users, onSaved}: {user: User; users: Pu
       <p>{preview!.result.source === 'local_agent' ? 'Interpreted by local AI' : preview!.result.source === 'mock' ? 'Mock interpretation · no AI inference' : 'Deterministic fallback interpretation'}</p>
       <p>{days.join(', ')} · {parsed.activities.join(', ')} · {parsed.allowed_durations.join(' or ')} minutes</p>
       <p>Flexible preference: {parsed.preferred_periods.join(', ') || 'any time'}.</p>
-      <p>Required time limits: {parsed.earliest ? `after ${parsed.earliest}` : 'no earliest limit'}; {parsed.latest ? `before ${parsed.latest}` : 'no latest limit'} ({user.timezone}).</p>
+      <p>Your request limits: {parsed.earliest ? `after ${parsed.earliest}` : 'no earliest limit'}; {parsed.latest ? `before ${parsed.latest}` : 'no latest limit'} ({user.timezone}).</p>
       {parsed.clarification ? <p role="status">Please edit your message: {parsed.clarification}</p> : <>
-        <p className="text-sm">Sending lets your agent use your calendar-free time on these days within your personal hours ({user.matching.start_hour}:00–{user.matching.end_hour}:00). Your friend needs shared social windows or their own calendar matching opt-in. Both of you approve the final plan.</p>
+        <p className="text-sm">We’ll search within your saved personal hours, {user.matching.start_hour}:00–{user.matching.end_hour}:00 ({user.timezone}), and your request limits. {parsed.latest && Number(parsed.latest.slice(0,2)) > user.matching.end_hour ? `Your saved end time is earlier than ${parsed.latest}, so the search ends at ${user.matching.end_hour}:00. Change it under Availability if you want later plans.` : ''} Your friend also needs shared availability or calendar matching enabled. Both of you approve the final plan.</p>
         <button disabled={busy} onClick={() => void submit(true)}>Confirm and ask agents</button>
       </>}
     </section>}

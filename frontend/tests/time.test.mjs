@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isoToZonedInput, zonedInputToISO } from '../src/demo/lib/time.ts';
+import { isoToZonedInput, zonedInputToISO } from '../src/lib/time.ts';
 
 test('New York input uses profile timezone', () => {
   assert.equal(zonedInputToISO('2026-10-18T14:00', 'America/New_York'), '2026-10-18T18:00:00.000Z');

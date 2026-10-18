@@ -1,14 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { checkHealth, getMe, listUsers } from './lib/api';
-import type { PublicUser, User } from './lib/api';
+import { checkHealth, getMe, listUsers } from '../lib/api';
+import type { PublicUser, User } from '../lib/api';
 import './style.css';
-import { MatchingPreferences } from './components/MatchingPreferences';
-import { SocialWindows } from './components/SocialWindows';
-import { Friendships } from './components/Friendships';
-import { ScheduleViewer } from './components/ScheduleViewer';
+import { MatchingPreferences } from '../components/MatchingPreferences';
+import { SocialWindows } from '../components/SocialWindows';
+import { Friendships } from '../components/Friendships';
+import { ScheduleViewer } from '../components/ScheduleViewer';
 import { HangoutRequests } from './components/HangoutRequests';
-import { PrivatePreferences } from './components/PrivatePreferences';
+import { PrivatePreferences } from '../components/PrivatePreferences';
 
 const demoUsers = [
   { id: 'demo-zaynah', name: 'Zaynah' },

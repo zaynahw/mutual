@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activeRequestFor } from '../src/demo/lib/friendships.ts';
+import { activeRequestFor } from '../src/lib/friendships.ts';
 
 const request = (status, sender_id = 'user-a', recipient_id = 'user-b') => ({
   id: 'request-1', sender_id, recipient_id, status,

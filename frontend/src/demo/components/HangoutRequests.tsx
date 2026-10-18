@@ -1,13 +1,13 @@
 import React from 'react';
-import { IntentRequestForm } from './IntentRequestForm';
-import { createProposal, getCandidates, listOverviews, negotiateHangout } from '../lib/api';
-import type { Activity, CandidateOption, Duration, HangoutOverview, HangoutRequest, NegotiationResponse, ProposalResponse, PublicUser, User } from '../lib/api';
-import { visibleProposals, planStatus } from '../lib/proposals';
-import { ProposalViewer } from './ProposalViewer';
-import { HangoutForm } from './HangoutForm';
-import type { HangoutDraft } from './HangoutForm';
-import { dateTime } from '../lib/display';
-import { isoToZonedInput, zonedInputToISO } from '../lib/time';
+import { IntentRequestForm } from '../../components/IntentRequestForm';
+import { createProposal, getCandidates, listOverviews, negotiateHangout } from '../../lib/api';
+import type { Activity, CandidateOption, Duration, HangoutOverview, HangoutRequest, NegotiationResponse, ProposalResponse, PublicUser, User } from '../../lib/api';
+import { visibleProposals, planStatus } from '../../lib/proposals';
+import { ProposalViewer } from '../../components/ProposalViewer';
+import { HangoutForm } from '../../components/HangoutForm';
+import type { HangoutDraft } from '../../components/HangoutForm';
+import { dateTime } from '../../lib/display';
+import { isoToZonedInput, zonedInputToISO } from '../../lib/time';
 
 function CandidateChoice({ option, timezone, disabled, save }: {
   option: CandidateOption; timezone: string; disabled: boolean;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { visibleProposals } from '../src/demo/lib/proposals.ts';
+import { visibleProposals } from '../src/lib/proposals.ts';
 
 const plan = (id, status) => ({ id, status });
 test('declined options disappear while active alternatives remain', () => {
@@ -18,7 +18,7 @@ test('an agreed or scheduled plan hides all competing options regardless of orde
 });
 
 test('cancelled options stay hidden and status follows the current user', async () => {
-  const { planStatus } = await import('../src/demo/lib/proposals.ts');
+  const { planStatus } = await import('../src/lib/proposals.ts');
   assert.deepEqual(visibleProposals([plan('closed','cancelled')]), []);
   const response = {proposal:plan('pending','pending'),approvals:[{user_id:'a',decision:'approve'}]};
   assert.equal(planStatus([response], 'a'), 'Waiting for response');
